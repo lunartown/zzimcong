@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: zzimcong
+  datasource:
+    url: jdbc:mysql://localhost:3306/zzimcong?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: shshfhqh
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+email:
+  host: smtp.gmail.com
+  port: 587
+  username: lunartownssafy@gmail.com
+  password: uoamfbsswibnykyz
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+  sender: zzimcong99@gmail.com
+  subject: "[찜콩] 이메일 인증번호가 발급되었습니다."
+  template:
+    path: classpath:templates/content.html
+  verification:
+    code:
+      length: 6
+      expiry:
+        seconds: 300
+    token:
+      expiry:
+        minutes: 30
+
+encryption:
+  key: kM3zOtucaUEIeCMIT0dB6ps80X2HjNDm
+
+jwt:
+  secret: ERw6FHcmkqXLBOoP3gMFuc8uzKmPeST8
+  access-token:
+    expiration: 3600000 # 1 hour
+  refresh-token:
+    expiration: 86400000 # 1 day
+
+logging:
+  level:
+    com.lunartown.zzimcong: DEBUG
+    org.springframework.security: DEBUG
+
+auth:
+  cookie:
+    refresh-token:
+      name: refresh_token
+      max-age: 604800000 # 1 week
+      http-only: true
+      secure: true
+      path: "/"
