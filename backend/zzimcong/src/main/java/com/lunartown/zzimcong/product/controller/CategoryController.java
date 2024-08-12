@@ -1,5 +1,7 @@
 package com.lunartown.zzimcong.product.controller;
 
+import com.lunartown.zzimcong.product.dto.CategoryCreateRequest;
+import com.lunartown.zzimcong.product.dto.CategoryDto;
 import com.lunartown.zzimcong.product.entity.Category;
 import com.lunartown.zzimcong.product.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,19 +21,19 @@ public class CategoryController {
 
     //카테고리 목록 조회
     @GetMapping
-    public List<Category> getCategories() {
-        return categoryService.getCategories();
+    public List<CategoryDto> getCategories() {
+        return categoryService.getAllCategories();
     }
 
     //카테고리 추가
     @PostMapping
-    public Category createCategory(@RequestBody Category category) {
-        return categoryService.createCategory(category);
+    public CategoryDto createCategory(@RequestBody CategoryCreateRequest request) {
+        return categoryService.createCategory(request.getName(), request.getParentCategoryId());
     }
 
     //카테고리 수정
     @PutMapping("/{id}")
-    public Category updateCategory(@PathVariable Long id, @RequestBody Category category) {
+    public CategoryDto updateCategory(@PathVariable Long id, @RequestBody Category category) {
         return categoryService.updateCategory(id, category);
     }
 

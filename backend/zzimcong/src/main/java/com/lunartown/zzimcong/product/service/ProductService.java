@@ -1,6 +1,7 @@
 package com.lunartown.zzimcong.product.service;
 
 import com.lunartown.zzimcong.common.exception.ProductNotFoundException;
+import com.lunartown.zzimcong.product.dto.ProductDto;
 import com.lunartown.zzimcong.product.entity.Product;
 import com.lunartown.zzimcong.product.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +22,23 @@ public class ProductService {
     }
 
     //상품 등록
-    public Product createProduct(Product product) {
-        return productRepository.save(product);
+    public ProductDto createProduct(Product product) {
+        Product createdProduct = productRepository.save(product);
+        if (createdProduct != null) {
+            return new ProductDto(createdProduct);
+        } else {
+            return null;
+        }
     }
 
     //상품 조회
-    public Product getProductById(Long id) {
-        return productRepository.findById(id).orElse(null);
+    public ProductDto getProductById(Long id) {
+        Product product = productRepository.findById(id).orElse(null);
+        if (product != null) {
+            return new ProductDto(product);
+        } else {
+            return null;
+        }
     }
 
     //상품 수정
@@ -48,13 +59,13 @@ public class ProductService {
     }
 
     //상품 목록 조회
-    public List<Product> getProducts(int page, int size, String search, Long categoryId) {
+    public List<ProductDto> getProducts(int page, int size, String search, Long categoryId) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Product> productPage = productRepository.findBySearchAndCategoryId(search, categoryId, pageable);
+        Page<Product> productPage = productRepository.findAllWithFilters(search, categoryId, pageable);
         //상품이 없을 경우 예외 처리
         if (productPage.isEmpty()) {
             throw new ProductNotFoundException("상품이 없습니다.");
         }
-        return productPage.getContent();
+        return productPage.map(ProductDto::new).getContent();
     }
 }

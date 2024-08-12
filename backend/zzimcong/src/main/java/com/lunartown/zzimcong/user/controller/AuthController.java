@@ -36,7 +36,7 @@ public class AuthController {
         try {
             boolean isAvailable = emailVerificationService.isEmailAvailable(emailRequestDto.getEmail());
             if (isAvailable) {
-                return ResponseEntity.ok(new SuccessResponse("이메일 사용 가능합니다."));
+                return ResponseEntity.ok(new SuccessResponse("사용 가능한 이메일입니다."));
             } else {
                 return ResponseEntity.ok(new ErrorResponse("이미 사용 중인 이메일입니다."));
             }

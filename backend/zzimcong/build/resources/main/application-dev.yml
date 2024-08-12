@@ -2,7 +2,7 @@ spring:
   application:
     name: zzimcong
   datasource:
-    url: jdbc:mysql://localhost:3306/zzimcong?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/zzimcong?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true&allowPublicKeyRetrieval=true
     username: root
     password: shshfhqh
   jpa:
@@ -20,8 +20,8 @@ spring:
 email:
   host: smtp.gmail.com
   port: 587
-  username: lunartownssafy@gmail.com
-  password: uoamfbsswibnykyz
+  username: zzimcong99@gmail.com
+  password: foslivlosvsuzqcf
   properties:
     mail:
       smtp:
@@ -31,7 +31,7 @@ email:
   sender: zzimcong99@gmail.com
   subject: "[찜콩] 이메일 인증번호가 발급되었습니다."
   template:
-    path: classpath:templates/content.html
+    path: classpath:templates/mailContent.html
   verification:
     code:
       length: 6
@@ -64,3 +64,9 @@ auth:
       http-only: true
       secure: true
       path: "/"
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

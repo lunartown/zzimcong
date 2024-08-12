@@ -21,6 +21,21 @@ CREATE TABLE user (
 );
 CREATE INDEX idx_user_email ON user(email);
 
+CREATE TABLE `user` (
+  `user_id` int NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `phone` varchar(255) NOT NULL,
+  `abuser` bit(1) NOT NULL,
+  `signout` bit(1) NOT NULL,
+  `role` varchar(255) NOT NULL,
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `UKob8kqyqqgmefl0aco34akdtpe` (`email`),
+  KEY `idx_user_email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
 -- 주소 테이블
 CREATE TABLE address (
     addr_id INT NOT NULL AUTO_INCREMENT,
@@ -107,3 +122,5 @@ CREATE TABLE order_product (
     FOREIGN KEY (order_id) REFERENCES `order`(order_id),
     FOREIGN KEY (product_id) REFERENCES product(product_id)
 );
+
+

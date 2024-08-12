@@ -2,7 +2,7 @@ package com.lunartown.zzimcong.user.security.jwt;
 
 import com.lunartown.zzimcong.user.entity.User;
 import com.lunartown.zzimcong.user.repository.UserRepository;
-import com.lunartown.zzimcong.user.security.CustomUserDetails;
+import com.lunartown.zzimcong.user.security.UserDetailsImpl;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -58,7 +58,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
 
             if (jwtUtil.validateToken(jwt, user.getEmail())) {
-                CustomUserDetails userDetails = new CustomUserDetails(user);
+                UserDetailsImpl userDetails = new UserDetailsImpl(user);
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
