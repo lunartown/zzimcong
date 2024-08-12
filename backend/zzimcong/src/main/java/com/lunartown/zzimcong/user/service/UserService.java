@@ -49,6 +49,12 @@ public class UserService {
         return userMapper.toDto(user);
     }
 
+    public UserResponseDto getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("해당 유저가 없습니다."));
+        return userMapper.toDto(user);
+    }
+
     //유저 수정
     @Transactional
     public UserResponseDto updateUser(UserModifyRequestDto userModifyRequestDto) {

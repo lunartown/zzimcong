@@ -43,15 +43,15 @@ public class AuthService {
     public AuthResponse signUp(SignupRequestDto signupRequestDto, String token) {
         emailVerificationService.validateTokenForRegistration(signupRequestDto.getEmail(), token);
         User savedUser = userService.createUser(signupRequestDto);
-        return generateAuthResponse(savedUser.getEmail());
+        return generateAuthResponse(savedUser.getId());
     }
 
     public AuthResultDto login(LoginRequestDto requestDto) {
         try {
             Authentication authentication = authenticateUser(requestDto);
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String email = userDetails.getUsername();
-            return generateAuthResultDto(email);
+            Long id = Long.parseLong(userDetails.getUsername());
+            return generateAuthResultDto(id);
         } catch (BadCredentialsException e) {
             log.error("로그인 실패: 잘못된 자격 증명", e);
             throw new InvalidCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다.");
@@ -67,9 +67,9 @@ public class AuthService {
                 throw new UnauthorizedException("유효하지 않은 토큰입니다.");
             }
 
-            String userEmail = jwtUtil.extractEmail(accessToken);
-            tokenService.deleteRefreshToken(userEmail);
-            log.debug("logout: {}", userEmail);
+            Long id = jwtUtil.extractId(accessToken);
+            tokenService.deleteRefreshToken(String.valueOf(id));
+            log.debug("logout: {}", id);
         } catch (ExpiredJwtException e) {
             throw new UnauthorizedException("만료된 토큰입니다.");
         }
@@ -85,9 +85,9 @@ public class AuthService {
                 throw new UnauthorizedException("유효하지 않은 토큰입니다.");
             }
 
-            String userEmail = jwtUtil.extractEmail(refreshToken);
-            userService.getUserByEmail(userEmail); // 사용자 존재 여부 확인
-            return new AccessTokenResponse(jwtUtil.generateAccessToken(userEmail));
+            Long id = jwtUtil.extractId(refreshToken);
+            userService.getUserById(id); // 사용자 존재 여부 확인
+            return new AccessTokenResponse(jwtUtil.generateAccessToken(id));
         } catch (ExpiredJwtException e) {
             throw new UnauthorizedException("만료된 토큰입니다.");
         }
@@ -99,17 +99,17 @@ public class AuthService {
         );
     }
 
-    private AuthResponse generateAuthResponse(String email) {
-        String accessToken = jwtUtil.generateAccessToken(email);
-        String refreshToken = jwtUtil.generateRefreshToken(email);
-        tokenService.storeRefreshToken(email, refreshToken);
+    private AuthResponse generateAuthResponse(Long id) {
+        String accessToken = jwtUtil.generateAccessToken(id);
+        String refreshToken = jwtUtil.generateRefreshToken(id);
+        tokenService.storeRefreshToken(String.valueOf(id), refreshToken);
         return new AuthResponse(accessToken, refreshToken);
     }
 
-    private AuthResultDto generateAuthResultDto(String email) {
-        String accessToken = jwtUtil.generateAccessToken(email);
-        String refreshToken = jwtUtil.generateRefreshToken(email);
-        tokenService.storeRefreshToken(email, refreshToken);
+    private AuthResultDto generateAuthResultDto(Long id) {
+        String accessToken = jwtUtil.generateAccessToken(id);
+        String refreshToken = jwtUtil.generateRefreshToken(id);
+        tokenService.storeRefreshToken(String.valueOf(id), refreshToken);
         return new AuthResultDto(accessToken, refreshToken);
     }
 }

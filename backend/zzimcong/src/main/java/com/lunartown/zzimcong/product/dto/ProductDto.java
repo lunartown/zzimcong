@@ -28,4 +28,8 @@ public class ProductDto {
         this.createdAt = product.getCreatedAt().toString();
         this.deleted = product.isDeleted();
     }
+
+    public static ProductDto of(Product product) {
+        return new ProductDto(product);
+    }
 }

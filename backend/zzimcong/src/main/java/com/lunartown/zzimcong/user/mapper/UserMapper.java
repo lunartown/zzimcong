@@ -29,7 +29,7 @@ public class UserMapper {
         }
         User user = new User();
         try {
-            user.setUsername(aesUtil.encrypt(dto.getName()));
+            user.setName(aesUtil.encrypt(dto.getName()));
             user.setEmail(aesUtil.encrypt(dto.getEmail()));
             user.setPhone(aesUtil.encrypt(dto.getPhone()));
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -48,8 +48,9 @@ public class UserMapper {
         }
         UserResponseDto dto = new UserResponseDto();
         try {
+            dto.setId(user.getId());
             dto.setEmail(aesUtil.decrypt(user.getEmail()));
-            dto.setUsername(aesUtil.decrypt(user.getUsername()));
+            dto.setUsername(aesUtil.decrypt(user.getName()));
             dto.setPhone(aesUtil.decrypt(user.getPhone()));
         } catch (CryptoException e) {
             logger.error("Error decrypting user data: {}", e.getMessage());
@@ -64,7 +65,7 @@ public class UserMapper {
         if (user == null || dto == null) {
             return null;
         }
-        user.setUsername(aesUtil.encrypt(dto.getUsername()));
+        user.setName(aesUtil.encrypt(dto.getUsername()));
         user.setPhone(aesUtil.encrypt(dto.getPhone()));
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         return user;

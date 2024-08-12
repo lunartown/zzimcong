@@ -11,7 +11,7 @@ USE zzimcong;
 CREATE TABLE user (
     user_id INT NOT NULL AUTO_INCREMENT,
     email VARCHAR(64) NOT NULL UNIQUE,
-    username VARCHAR(64) NOT NULL,
+    name VARCHAR(64) NOT NULL,
     password VARCHAR(64) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     abuser VARCHAR(1) DEFAULT 'N',
@@ -104,7 +104,7 @@ CREATE TABLE `order` (
     addr VARCHAR(255) NOT NULL,
     addrDetail VARCHAR(255) NOT NULL,
     zipcode VARCHAR(10) NOT NULL,
-    tel VARCHAR(20) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
     message VARCHAR(255),
     PRIMARY KEY (order_id),
     FOREIGN KEY (user_id) REFERENCES user(user_id)

@@ -85,7 +85,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(Exception ex, WebRequest request) {
         String requestDescription = request.getDescription(false);
-        log.error("Exception occurred: {} for request: {}", ex.getMessage(), requestDescription);
+        log.error("예외 발생: type={}, message={}, request={}",
+                ex.getClass().getSimpleName(), ex.getMessage(), requestDescription, ex);
 
         ErrorDetails errorDetails = new ErrorDetails(
                 LocalDateTime.now(),

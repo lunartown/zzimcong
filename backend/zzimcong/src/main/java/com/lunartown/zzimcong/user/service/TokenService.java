@@ -1,6 +1,5 @@
 package com.lunartown.zzimcong.user.service;
 
-import com.lunartown.zzimcong.user.security.jwt.JwtUtil;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -9,11 +8,9 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class TokenService {
     private final RedisTemplate<String, String> redisTemplate;
-    private final JwtUtil jwtUtil;
 
-    public TokenService(RedisTemplate<String, String> redisTemplate, JwtUtil jwtUtil) {
+    public TokenService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
-        this.jwtUtil = jwtUtil;
     }
 
     public void storeRefreshToken(String username, String refreshToken) {

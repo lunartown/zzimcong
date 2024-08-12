@@ -5,8 +5,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +13,7 @@ import java.security.Key;
 import java.util.Date;
 import java.util.function.Function;
 
+@Slf4j
 @Component
 public class JwtUtil {
 
@@ -26,41 +26,39 @@ public class JwtUtil {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
-    private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
-
     private Key getSigningKey() {
         byte[] keyBytes = secret.getBytes();
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateAccessToken(String email) {
-        return generateToken(email, accessTokenExpiration);
+    public String generateAccessToken(Long id) {
+        return generateToken(id, accessTokenExpiration);
     }
 
 
-    public String generateRefreshToken(String email) {
-        return generateToken(email, refreshTokenExpiration);
+    public String generateRefreshToken(Long id) {
+        return generateToken(id, refreshTokenExpiration);
     }
 
-    private String generateToken(String subject, long expiration) {
+    private String generateToken(Long id, long expiration) {
         Date now = new Date(System.currentTimeMillis());
         Date expiryDate = new Date(now.getTime() + expiration * 1000);
-        logger.info("Generating token for subject: {}, expiration: {}", subject, expiryDate);
+        log.info("Generating token for subject: {}, expiration: {}", id, expiryDate);
         return Jwts.builder()
-                .setSubject(subject)
+                .setSubject(String.valueOf(id))
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+    public Long extractId(String token) {
+        return Long.parseLong(extractClaim(token, Claims::getSubject));
     }
 
-    public Boolean validateToken(String token, String email) {
-        final String tokenEmail = extractEmail(token);
-        return (tokenEmail.equals(email) && !isTokenExpired(token));
+    public Boolean validateToken(String token, Long id) {
+        final Long tokenId = extractId(token);
+        return (tokenId.equals(id) && !isTokenExpired(token));
     }
 
     public Boolean validateToken(String token) {
@@ -75,7 +73,7 @@ public class JwtUtil {
             Claims claims = extractAllClaims(token);
             return !isTokenExpired(claims);
         } catch (JwtException | IllegalArgumentException e) {
-            logger.error("Invalid JWT token", e);
+            log.error("Invalid JWT token", e);
             // 3. 예외 처리
             return false;
         }
