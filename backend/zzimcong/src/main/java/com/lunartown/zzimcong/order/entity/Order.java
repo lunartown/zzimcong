@@ -1,10 +1,19 @@
 package com.lunartown.zzimcong.order.entity;
 
-import com.lunartown.zzimcong.product.entity.Product;
+import com.lunartown.zzimcong.order.dto.OrderRequest;
 import com.lunartown.zzimcong.user.entity.BaseEntity;
-import com.lunartown.zzimcong.user.entity.User;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
 public class Order extends BaseEntity {
     @Id
@@ -13,48 +22,64 @@ public class Order extends BaseEntity {
     public Long id;
 
     @Column(nullable = false)
+    public Long userId;
+
+    @Column(nullable = false)
     public Long orderAmount;
 
     @Column(nullable = false)
     public Long paymentAmount;
 
-    @Column(name = "payment")
     public String payment;
 
-    @Column(name = "status")
-    public String status;
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'PENDING'")
+    public OrderStatus status;
 
-    @Column(name = "deleted")
-    public String deleted;
+    public boolean deleted = false;
 
-    @Column(name = "reason")
     public String reason;
 
-    @Column(name = "name")
+    @Column(nullable = false)
     public String name;
 
-    @Column(name = "addr")
+    @Column(nullable = false)
     public String addr;
 
-    @Column(name = "addrDetail")
+    @Column(nullable = false)
     public String addrDetail;
 
-    @Column(name = "zipcode")
+    @Column(nullable = false)
     public String zipcode;
 
-    @Column(name = "phone")
+    @Column(nullable = false)
     public String phone;
 
-    @Column(name = "message")
     public String message;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    public User user;
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    public List<OrderItem> orderItems = new ArrayList<>();
 
-    @ManyToOne
-    @JoinColumn(name = "product_id")
-    public Product product;
+    private Order(Long userId, OrderRequest orderRequest) {
+        this.userId = userId;
+        this.orderAmount = orderRequest.getOrderAmount();
+        this.paymentAmount = orderRequest.getPaymentAmount();
+        this.payment = orderRequest.getPayment();
+        this.name = orderRequest.getName();
+        this.addr = orderRequest.getAddr();
+        this.addrDetail = orderRequest.getAddrDetail();
+        this.zipcode = orderRequest.getZipcode();
+        this.phone = orderRequest.getPhone();
+        this.message = orderRequest.getMessage();
+    }
 
-    
+    //factory method
+    public static Order createOrder(Long userId, OrderRequest orderRequest) {
+        return new Order(userId, orderRequest);
+    }
+
+    public void addOrderItem(OrderItem item) {
+        this.orderItems.add(item);
+        item.setOrder(this);
+    }
 }

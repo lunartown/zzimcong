@@ -66,12 +66,12 @@ CREATE INDEX idx_product_name ON product(name);
 
 
 -- 장바구니 상품 테이블
-CREATE TABLE cart_product (
-    cart_product_id BIGINT NOT NULL AUTO_INCREMENT,
+CREATE TABLE cart_item (
+    cart_item_id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
     count INT NOT NULL,
-    PRIMARY KEY (cart_product_id),
+    PRIMARY KEY (cart_item_id),
     FOREIGN KEY (user_id) REFERENCES user(user_id),
     FOREIGN KEY (product_id) REFERENCES product(product_id)
 );
@@ -99,13 +99,13 @@ CREATE TABLE `order` (
 CREATE INDEX idx_order_user_id ON `order`(user_id);
 
 -- 주문 상품 테이블
-CREATE TABLE order_product (
-    order_product_id BIGINT NOT NULL AUTO_INCREMENT,
+CREATE TABLE order_item (
+    order_item_id BIGINT NOT NULL AUTO_INCREMENT,
     order_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
     price INT,
     count INT NOT NULL,
-    PRIMARY KEY (order_product_id),
+    PRIMARY KEY (order_item_id),
     FOREIGN KEY (order_id) REFERENCES `order`(order_id),
     FOREIGN KEY (product_id) REFERENCES product(product_id)
 );
