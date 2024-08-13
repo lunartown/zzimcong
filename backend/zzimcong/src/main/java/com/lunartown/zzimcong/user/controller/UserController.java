@@ -4,10 +4,12 @@ import com.lunartown.zzimcong.user.dto.EmailRequestDto;
 import com.lunartown.zzimcong.user.dto.UserModifyRequestDto;
 import com.lunartown.zzimcong.user.dto.UserResponseDto;
 import com.lunartown.zzimcong.user.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j(topic = "USER_CONTROLLER")
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
@@ -17,7 +19,7 @@ public class UserController {
     public UserController(UserService userService) {
         this.userService = userService;
     }
-    
+
     //회원정보
     @GetMapping
     public ResponseEntity<UserResponseDto> getUserByEmail(@RequestBody EmailRequestDto emailRequestDto) {

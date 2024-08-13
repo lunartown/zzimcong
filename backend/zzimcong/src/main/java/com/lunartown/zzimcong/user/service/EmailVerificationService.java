@@ -3,9 +3,9 @@ package com.lunartown.zzimcong.user.service;
 import com.lunartown.zzimcong.common.util.EmailVerificationToken;
 import com.lunartown.zzimcong.common.util.RedisUtil;
 import com.lunartown.zzimcong.user.config.EmailProperties;
-import com.lunartown.zzimcong.user.exception.InvalidTokenException;
-import com.lunartown.zzimcong.user.exception.InvalidVerificationCodeException;
-import com.lunartown.zzimcong.user.exception.TokenExpiredException;
+import com.lunartown.zzimcong.user.exception.ConflictException;
+import com.lunartown.zzimcong.user.exception.ErrorCode;
+import com.lunartown.zzimcong.user.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -33,17 +33,15 @@ public class EmailVerificationService {
         this.redisUtil = redisUtil;
     }
 
-    public boolean sendVerificationEmail(String email) {
+    public void sendVerificationEmail(String email) {
         if (!isEmailAvailable(email)) {
             log.warn("사용할 수 없는 이메일입니다: {}", email);
-            return false;
+            throw new ConflictException(ErrorCode.DUPLICATE_EMAIL);
         }
         String verificationCode = emailService.generateVerificationCode();
-        boolean isEmailSent = emailService.sendVerificationEmail(email, verificationCode);
-        if (isEmailSent) {
-            storeVerificationCode(verificationCode, email);
-        }
-        return isEmailSent;
+        emailService.sendVerificationEmail(email, verificationCode);
+        storeVerificationCode(verificationCode, email);
+        log.info("인증 이메일 전송: {}", email);
     }
 
     public boolean isEmailAvailable(String email) {
@@ -57,7 +55,7 @@ public class EmailVerificationService {
 
     public String verifyEmailAndGenerateToken(String email, String verificationCode) {
         if (!verifyEmailCode(email, verificationCode)) {
-            throw new InvalidVerificationCodeException("유효하지 않은 인증 코드입니다.");
+            throw new UnauthorizedException(ErrorCode.INVALID_VERIFICATION_CODE);
         }
         String token = UUID.randomUUID().toString();
         EmailVerificationToken verificationToken =
@@ -78,11 +76,11 @@ public class EmailVerificationService {
                 .filter(t -> t.getToken().trim().equalsIgnoreCase(token.trim())
                         && t.getEmail().trim().equalsIgnoreCase(email.trim()))
                 .findFirst()
-                .orElseThrow(() -> new InvalidTokenException("유효하지 않은 이메일 검증 토큰입니다."));
+                .orElseThrow(() -> new UnauthorizedException(ErrorCode.INVALID_TOKEN));
 
         if (LocalDateTime.now().isAfter(verificationToken.getExpiryDate())) {
             emailVerificationTokens.remove(verificationToken);
-            throw new TokenExpiredException("만료된 이메일 검증 토큰입니다.");
+            throw new UnauthorizedException(ErrorCode.EXPIRED_TOKEN);
         }
 
         emailVerificationTokens.remove(verificationToken);

@@ -1,6 +1,9 @@
 package com.lunartown.zzimcong.user.security.jwt;
 
 import com.lunartown.zzimcong.user.entity.User;
+import com.lunartown.zzimcong.user.exception.ErrorCode;
+import com.lunartown.zzimcong.user.exception.NotFoundException;
+import com.lunartown.zzimcong.user.exception.UnauthorizedException;
 import com.lunartown.zzimcong.user.repository.UserRepository;
 import com.lunartown.zzimcong.user.security.UserDetailsImpl;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -8,6 +11,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -16,6 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j(topic = "JWT_REQUEST_FILTER")
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
 
@@ -41,21 +46,17 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             try {
                 id = jwtUtil.extractId(jwt);
             } catch (ExpiredJwtException e) {
-                logger.warn("JWT 토큰이 만료되었습니다", e);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("토큰이 만료되었습니다. 다시 로그인해주세요.");
-                return;
+                log.warn("JWT 토큰이 만료되었습니다", e);
+                throw new UnauthorizedException(ErrorCode.EXPIRED_TOKEN);
             } catch (Exception e) {
-                logger.error("JWT 토큰에서 이메일을 추출하는 중 오류가 발생했습니다", e);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("유효하지 않은 토큰입니다.");
-                return;
+                log.error("JWT 토큰에서 id를 추출하는 중 오류가 발생했습니다", e);
+                throw new UnauthorizedException(ErrorCode.INVALID_TOKEN);
             }
         }
 
         if (id != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+                    .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
 
             if (jwtUtil.validateToken(jwt, user.getId())) {
                 UserDetailsImpl userDetails = new UserDetailsImpl(user);
@@ -66,10 +67,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             } else {
-                logger.warn("JWT 토큰 검증에 실패했습니다");
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("유효하지 않은 토큰입니다.");
-                return;
+                log.warn("JWT 토큰 검증에 실패했습니다");
+                throw new UnauthorizedException(ErrorCode.INVALID_TOKEN);
             }
         }
 

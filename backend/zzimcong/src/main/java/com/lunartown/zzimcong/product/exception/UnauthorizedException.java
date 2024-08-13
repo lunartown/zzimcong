@@ -1,4 +1,4 @@
-package com.lunartown.zzimcong.user.exception;
+package com.lunartown.zzimcong.product.exception;
 
 public class UnauthorizedException extends BaseException {
     public UnauthorizedException(ErrorCode errorCode) {

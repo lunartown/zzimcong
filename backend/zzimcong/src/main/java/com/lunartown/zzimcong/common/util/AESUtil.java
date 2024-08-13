@@ -1,6 +1,7 @@
 package com.lunartown.zzimcong.common.util;
 
-import com.lunartown.zzimcong.user.exception.CryptoException;
+import com.lunartown.zzimcong.user.exception.ErrorCode;
+import com.lunartown.zzimcong.user.exception.InternalServerError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,7 @@ public class AESUtil {
             return Base64.getEncoder().encodeToString(encryptedData);
         } catch (Exception e) {
             logger.error("Encryption failed", e);
-            throw new CryptoException("암호화에 실패하였습니다: " + e.getMessage(), e);
+            throw new InternalServerError(ErrorCode.ENCRYPTION_FAILED);
         }
     }
 
@@ -44,7 +45,7 @@ public class AESUtil {
             return new String(decryptedData, StandardCharsets.UTF_8);
         } catch (Exception e) {
             logger.error("Decryption failed", e);
-            throw new CryptoException("복호화에 실패하였습니다: " + e.getMessage(), e);
+            throw new InternalServerError(ErrorCode.DECRYPTION_FAILED);
         }
     }
 

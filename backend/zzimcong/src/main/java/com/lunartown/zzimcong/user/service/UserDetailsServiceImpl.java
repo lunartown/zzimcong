@@ -2,7 +2,8 @@ package com.lunartown.zzimcong.user.service;
 
 import com.lunartown.zzimcong.common.util.AESUtil;
 import com.lunartown.zzimcong.user.entity.User;
-import com.lunartown.zzimcong.user.exception.UserNotFoundException;
+import com.lunartown.zzimcong.user.exception.ErrorCode;
+import com.lunartown.zzimcong.user.exception.NotFoundException;
 import com.lunartown.zzimcong.user.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,7 +24,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(aesUtil.encrypt(email))
-                .orElseThrow(() -> new UserNotFoundException("이메일로 검색된 유저가 없습니다: " + email));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         return org.springframework.security.core.userdetails.User
                 .withUsername(email)
                 .password(user.getPassword())

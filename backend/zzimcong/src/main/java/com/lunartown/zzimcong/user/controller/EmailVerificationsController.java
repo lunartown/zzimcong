@@ -4,9 +4,8 @@ import com.lunartown.zzimcong.user.dto.EmailCheckDto;
 import com.lunartown.zzimcong.user.dto.EmailRequestDto;
 import com.lunartown.zzimcong.user.service.EmailVerificationService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,19 +15,19 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j(topic = "EMAIL_VERIFICATIONS_CONTROLLER")
 @RestController
 @RequestMapping("/api/v1/email-verifications")
-@RequiredArgsConstructor
 public class EmailVerificationsController {
     private final EmailVerificationService emailVerificationService;
+
+    @Autowired
+    public EmailVerificationsController(EmailVerificationService emailVerificationService) {
+        this.emailVerificationService = emailVerificationService;
+    }
 
     @PostMapping("/send")
     public ResponseEntity<String> sendVerificationEmail(@RequestBody @Valid EmailRequestDto emailDto) {
         log.info("인증 이메일 전송 요청: {}", emailDto.getEmail());
-        boolean isEmailSent = emailVerificationService.sendVerificationEmail(emailDto.getEmail());
-        if (isEmailSent) {
-            return ResponseEntity.ok("인증 이메일이 성공적으로 전송되었습니다.");
-        } else {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("인증 이메일 전송에 실패했습니다.");
-        }
+        emailVerificationService.sendVerificationEmail(emailDto.getEmail());
+        return ResponseEntity.ok("인증 이메일이 성공적으로 전송되었습니다.");
     }
 
     @PostMapping("/verify")

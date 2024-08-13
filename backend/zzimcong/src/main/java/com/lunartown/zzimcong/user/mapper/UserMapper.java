@@ -5,7 +5,7 @@ import com.lunartown.zzimcong.user.dto.SignupRequestDto;
 import com.lunartown.zzimcong.user.dto.UserModifyRequestDto;
 import com.lunartown.zzimcong.user.dto.UserResponseDto;
 import com.lunartown.zzimcong.user.entity.User;
-import com.lunartown.zzimcong.user.exception.CryptoException;
+import com.lunartown.zzimcong.user.exception.InternalServerError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +33,7 @@ public class UserMapper {
             user.setEmail(aesUtil.encrypt(dto.getEmail()));
             user.setPhone(aesUtil.encrypt(dto.getPhone()));
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        } catch (CryptoException e) {
+        } catch (InternalServerError e) {
             logger.error("Error encrypting user data: {}", e.getMessage());
             throw e;
         }
@@ -52,7 +52,7 @@ public class UserMapper {
             dto.setEmail(aesUtil.decrypt(user.getEmail()));
             dto.setUsername(aesUtil.decrypt(user.getName()));
             dto.setPhone(aesUtil.decrypt(user.getPhone()));
-        } catch (CryptoException e) {
+        } catch (InternalServerError e) {
             logger.error("Error decrypting user data: {}", e.getMessage());
             throw e;
         }

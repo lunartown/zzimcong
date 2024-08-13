@@ -1,6 +1,8 @@
 package com.lunartown.zzimcong.user.service;
 
 import com.lunartown.zzimcong.user.config.EmailProperties;
+import com.lunartown.zzimcong.user.exception.ErrorCode;
+import com.lunartown.zzimcong.user.exception.InternalServerError;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +38,8 @@ public class EmailService {
             return template.replace("${verificationCode}", verificationCode);
         } catch (IOException e) {
             log.error("Failed to load email template", e);
-            throw new RuntimeException("이메일 템플릿을 불러오는데 실패했습니다.", e);
+            throw new InternalServerError(ErrorCode.RESOURCE_LOAD_FAILED,
+                    "이메일 템플릿 로딩에 실패했습니다.");
         }
     }
 
@@ -45,7 +48,7 @@ public class EmailService {
         return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
     }
 
-    public boolean sendVerificationEmail(String toEmail, String verificationCode) {
+    public void sendVerificationEmail(String toEmail, String verificationCode) {
         try {
             String content = prepareEmailContent(verificationCode);
             MimeMessage message = mailSender.createMimeMessage();
@@ -58,10 +61,10 @@ public class EmailService {
 
             mailSender.send(message);
             log.info("인증 메일이 성공적으로 전송되었습니다: {}", toEmail);
-            return true;
         } catch (MessagingException e) {
             log.error("인증 메일 전송에 실패했습니다: {}", toEmail, e);
-            return false;
+            throw new InternalServerError(ErrorCode.EMAIL_SEND_FAILED,
+                    "인증 메일 전송에 실패했습니다.");
         }
     }
 }

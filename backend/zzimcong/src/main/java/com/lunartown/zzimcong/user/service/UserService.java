@@ -5,8 +5,9 @@ import com.lunartown.zzimcong.user.dto.SignupRequestDto;
 import com.lunartown.zzimcong.user.dto.UserModifyRequestDto;
 import com.lunartown.zzimcong.user.dto.UserResponseDto;
 import com.lunartown.zzimcong.user.entity.User;
-import com.lunartown.zzimcong.user.exception.DuplicateEmailException;
-import com.lunartown.zzimcong.user.exception.UserNotFoundException;
+import com.lunartown.zzimcong.user.exception.ConflictException;
+import com.lunartown.zzimcong.user.exception.ErrorCode;
+import com.lunartown.zzimcong.user.exception.NotFoundException;
 import com.lunartown.zzimcong.user.mapper.UserMapper;
 import com.lunartown.zzimcong.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -36,7 +37,7 @@ public class UserService {
     //유저 생성
     public User createUser(SignupRequestDto signupRequestDto) {
         if (userRepository.existsByEmail(aesUtil.encrypt(signupRequestDto.getEmail()))) {
-            throw new DuplicateEmailException("이미 존재하는 이메일입니다: " + signupRequestDto.getEmail());
+            throw new ConflictException(ErrorCode.DUPLICATE_EMAIL);
         }
         User user = userMapper.toEntity(signupRequestDto);
         return userRepository.save(user);
@@ -45,13 +46,13 @@ public class UserService {
     //유저 조회
     public UserResponseDto getUserByEmail(String email) {
         User user = userRepository.findByEmail(aesUtil.encrypt(email))
-                .orElseThrow(() -> new UserNotFoundException("해당 유저가 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         return userMapper.toDto(user);
     }
 
     public UserResponseDto getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("해당 유저가 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         return userMapper.toDto(user);
     }
 
@@ -59,7 +60,7 @@ public class UserService {
     @Transactional
     public UserResponseDto updateUser(UserModifyRequestDto userModifyRequestDto) {
         User findUser = userRepository.findByEmail(aesUtil.encrypt(userModifyRequestDto.getEmail()))
-                .orElseThrow(() -> new UserNotFoundException("해당 유저가 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         findUser = userMapper.updateFromDto(findUser, userModifyRequestDto);
         User updatedUser = userRepository.save(findUser);
         return userMapper.toDto(updatedUser);
@@ -68,7 +69,7 @@ public class UserService {
     //유저 삭제
     public UserResponseDto signoutUser(String email) {
         User findUser = userRepository.findByEmail(aesUtil.encrypt(email))
-                .orElseThrow(() -> new UserNotFoundException("해당 유저가 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         findUser.setSignout(true);
         User signoutUser = userRepository.save(findUser);
         return userMapper.toDto(signoutUser);
