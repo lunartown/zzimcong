@@ -104,7 +104,7 @@ CREATE TABLE order_item (
     order_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
     price INT,
-    count INT NOT NULL,
+    quantity INT NOT NULL,
     PRIMARY KEY (order_item_id),
     FOREIGN KEY (order_id) REFERENCES `order`(order_id),
     FOREIGN KEY (product_id) REFERENCES product(product_id)

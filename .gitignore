@@ -32,15 +32,15 @@ hs_err_pid*
 
 # Gradle
 .gradle
-/build/
+**/build/
 !gradle/wrapper/gradle-wrapper.jar
 
 # Maven
-target/
+**/target/
 !.mvn/wrapper/maven-wrapper.jar
 
 # Spring Boot
-spring-boot-starter/
+**/spring-boot-starter/
 
 # Application properties
 application*.yml
@@ -81,20 +81,20 @@ Thumbs.db
 .springBeans
 
 # Code coverage
-/coverage/
+**/coverage/
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/frontend/zzimcong/node_modules/
-/frontend/zzimcong/.pnp/
+**/frontend/zzimcong/node_modules/
+**/frontend/zzimcong/.pnp/
 .pnp.js
 
 # testing
-/frontend/zzimcong/coverage/
+**/frontend/zzimcong/coverage/
 
 # production
-/frontend/zzimcong/build/
+**/frontend/zzimcong/build/
 
 # misc
 .DS_Store
