@@ -5,12 +5,14 @@ import com.zzimcong.order.domain.entity.OrderItem;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 public class OrderItemResponse {
     public Long id;
     public Long productId;
-    public Integer price;
+    public BigDecimal price;
     public Integer quantity;
     public Order order;
 

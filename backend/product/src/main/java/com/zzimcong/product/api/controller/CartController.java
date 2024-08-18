@@ -1,6 +1,6 @@
 package com.zzimcong.product.api.controller;
 
-import com.zzimcong.product.application.dto.cartItemDto;
+import com.zzimcong.product.application.dto.CartItemDto;
 import com.zzimcong.product.application.service.CartService;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
@@ -21,11 +21,11 @@ public class CartController {
     }
 
     @GetMapping
-    public ResponseEntity<List<cartItemDto>> getMyCart(
+    public ResponseEntity<List<CartItemDto>> getMyCart(
             @AuthenticationPrincipal UserDetails userDetails) {
         // JWT에서 추출한 사용자 정보를 사용
         Long userId = Long.parseLong(userDetails.getUsername());
-        List<cartItemDto> cart = cartService.getCartItemsForUser(userId);
+        List<CartItemDto> cart = cartService.getCartItemsForUser(userId);
         return ResponseEntity.ok(cart);
     }
 

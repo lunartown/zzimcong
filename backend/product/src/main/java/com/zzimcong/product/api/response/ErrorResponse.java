@@ -20,7 +20,7 @@ public class ErrorResponse {
     private LocalDateTime timestamp;
     private String path;
 
-    public static ErrorResponse of(HttpStatus status, BaseException ex, String path) {
+    public static ErrorResponse of(BaseException ex, HttpStatus status, String path) {
         ErrorResponse response = new ErrorResponse();
         response.setStatus(status.value());
         response.setMessage(ex.getMessage());

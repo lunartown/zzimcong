@@ -1,8 +1,8 @@
 package com.zzimcong.order.infrastructure.statemachine;
 
 import com.zzimcong.order.domain.entity.Order;
-import com.zzimcong.order.domain.entity.OrderEventType;
-import com.zzimcong.order.domain.entity.OrderState;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
@@ -10,17 +10,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OrderStateMachineFactory {
-    private final StateMachineFactory<OrderState, OrderEventType> stateMachineFactory;
+    private final StateMachineFactory<OrderStatus, OrderEventType> stateMachineFactory;
 
-    public OrderStateMachineFactory(StateMachineFactory<OrderState, OrderEventType> stateMachineFactory) {
+    public OrderStateMachineFactory(StateMachineFactory<OrderStatus, OrderEventType> stateMachineFactory) {
         this.stateMachineFactory = stateMachineFactory;
     }
 
-    public StateMachine<OrderState, OrderEventType> create(Order order) {
-        StateMachine<OrderState, OrderEventType> sm = stateMachineFactory.getStateMachine(order.getId().toString());
+    public StateMachine<OrderStatus, OrderEventType> create(Order order) {
+        StateMachine<OrderStatus, OrderEventType> sm = stateMachineFactory.getStateMachine(order.getId().toString());
         sm.stop();
         sm.getStateMachineAccessor().doWithAllRegions(sma -> {
-            sma.resetStateMachine(new DefaultStateMachineContext<>(order.getState(), null, null, null));
+            sma.resetStateMachine(new DefaultStateMachineContext<>(order.getStatus(), null, null, null));
         });
         sm.start();
         return sm;

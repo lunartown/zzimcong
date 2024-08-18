@@ -1,7 +1,7 @@
 package com.zzimcong.order.infrastructure.statemachine;
 
-import com.zzimcong.order.domain.entity.OrderEventType;
-import com.zzimcong.order.domain.entity.OrderState;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
@@ -12,65 +12,41 @@ import java.util.EnumSet;
 
 @Configuration
 @EnableStateMachineFactory
-public class OrderStateMachineConfig extends StateMachineConfigurerAdapter<OrderState, OrderEventType> {
+public class OrderStateMachineConfig extends StateMachineConfigurerAdapter<OrderStatus, OrderEventType> {
 
     @Override
-    public void configure(StateMachineStateConfigurer<OrderState, OrderEventType> states) throws Exception {
+    public void configure(StateMachineStateConfigurer<OrderStatus, OrderEventType> states) throws Exception {
         states
                 .withStates()
-                .initial(OrderState.CREATED)
-                .states(EnumSet.allOf(OrderState.class));
+                .initial(OrderStatus.CREATED)
+                .states(EnumSet.allOf(OrderStatus.class));
     }
 
     @Override
-    public void configure(StateMachineTransitionConfigurer<OrderState, OrderEventType> transitions) throws Exception {
+    public void configure(StateMachineTransitionConfigurer<OrderStatus, OrderEventType> transitions) throws Exception {
         transitions
                 .withExternal()
-                .source(OrderState.CREATED).target(OrderState.STOCK_RESERVED)
-                .event(OrderEventType.RESERVE_STOCK)
+                .source(OrderStatus.CREATED).target(OrderStatus.STOCK_RESERVED)
+                .event(OrderEventType.INVENTORY_RESERVED)
                 .and()
                 .withExternal()
-                .source(OrderState.STOCK_RESERVED).target(OrderState.PAYMENT_PROCESSED)
-                .event(OrderEventType.PROCESS_PAYMENT)
+                .source(OrderStatus.STOCK_RESERVED).target(OrderStatus.PAYMENT_PROCESSED)
+                .event(OrderEventType.PAYMENT_PROCESSED)
                 .and()
                 .withExternal()
-                .source(OrderState.PAYMENT_PROCESSED).target(OrderState.ORDER_COMPLETED)
-                .event(OrderEventType.COMPLETE_ORDER)
+                .source(OrderStatus.PAYMENT_PROCESSED).target(OrderStatus.ORDER_COMPLETED)
+                .event(OrderEventType.ORDER_COMPLETED)
                 .and()
                 .withExternal()
-                .source(OrderState.ORDER_COMPLETED).target(OrderState.PREPARING_FOR_SHIPMENT)
-                .event(OrderEventType.PREPARE_SHIPMENT)
+                .source(OrderStatus.ORDER_COMPLETED).target(OrderStatus.PREPARING_FOR_SHIPMENT)
+                .event(OrderEventType.SHIPMENT_PREPARING)
                 .and()
                 .withExternal()
-                .source(OrderState.PREPARING_FOR_SHIPMENT).target(OrderState.SHIPPING)
-                .event(OrderEventType.SHIP_ORDER)
+                .source(OrderStatus.PREPARING_FOR_SHIPMENT).target(OrderStatus.SHIPPING)
+                .event(OrderEventType.SHIPMENT_STARTED)
                 .and()
                 .withExternal()
-                .source(OrderState.SHIPPING).target(OrderState.DELIVERED)
-                .event(OrderEventType.DELIVER_ORDER)
-                .and()
-                .withExternal()
-                .source(OrderState.DELIVERED).target(OrderState.ORDER_CONFIRMED)
-                .event(OrderEventType.CONFIRM_ORDER)
-                .and()
-                .withExternal()
-                .source(OrderState.DELIVERED).target(OrderState.REFUND_REQUESTED)
-                .event(OrderEventType.REQUEST_REFUND)
-                .and()
-                .withExternal()
-                .source(OrderState.REFUND_REQUESTED).target(OrderState.REFUND_COMPLETED)
-                .event(OrderEventType.COMPLETE_REFUND)
-                .and()
-                .withExternal()
-                .source(OrderState.CREATED).target(OrderState.CANCELED)
-                .event(OrderEventType.CANCEL_ORDER)
-                .and()
-                .withExternal()
-                .source(OrderState.STOCK_RESERVED).target(OrderState.CANCELED)
-                .event(OrderEventType.CANCEL_ORDER)
-                .and()
-                .withExternal()
-                .source(OrderState.PAYMENT_PROCESSED).target(OrderState.CANCELED)
-                .event(OrderEventType.CANCEL_ORDER);
+                .source(OrderStatus.SHIPPING).target(OrderStatus.DELIVERED)
+                .event(OrderEventType.SHIPMENT_DELIVERED);
     }
 }

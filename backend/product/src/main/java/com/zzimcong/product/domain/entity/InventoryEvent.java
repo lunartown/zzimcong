@@ -1,12 +1,12 @@
 package com.zzimcong.product.domain.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@NoArgsConstructor
 @Getter
 @Setter
+@AllArgsConstructor
 public class InventoryEvent {
     private Long productId;
     private InventoryEventType eventType;

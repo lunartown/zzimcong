@@ -9,18 +9,18 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.CompletableFuture;
 
 @Component
-public class KafkaProducer {
+public class KafkaProducer<T> {
     private static final Logger logger = LoggerFactory.getLogger(KafkaProducer.class);
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, T> kafkaTemplate;
 
-    public KafkaProducer(KafkaTemplate<String, Object> kafkaTemplate) {
+    public KafkaProducer(KafkaTemplate<String, T> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void send(String topic, Object payload) {
+    public void send(String topic, T payload) {
         logger.info("Sending Kafka message to topic: {} with payload: {}", topic, payload);
-        CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(topic, payload);
+        CompletableFuture<SendResult<String, T>> future = kafkaTemplate.send(topic, payload);
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {

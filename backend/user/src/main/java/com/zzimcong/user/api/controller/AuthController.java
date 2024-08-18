@@ -1,9 +1,9 @@
 package com.zzimcong.user.api.controller;
 
 import com.zzimcong.user.api.response.ApiResponse;
+import com.zzimcong.user.application.dto.*;
 import com.zzimcong.user.application.service.AuthService;
 import com.zzimcong.user.application.service.EmailVerificationService;
-import com.zzimcong.user.application.dto.*;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -35,7 +35,7 @@ public class AuthController {
     public ResponseEntity<?> checkEmailAvailability(@RequestBody EmailRequestDto emailRequestDto) {
         boolean isAvailable = emailVerificationService.isEmailAvailable(emailRequestDto.getEmail());
         String message = isAvailable ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다.";
-        return ResponseEntity.ok(ApiResponse.success(null, message));
+        return ResponseEntity.ok(ApiResponse.success(isAvailable, message));
     }
 
     @PostMapping("/signup")
@@ -52,8 +52,8 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody LogoutRequest logoutRequest) {
-        authService.logout(logoutRequest.getAccessToken());
+    public ResponseEntity<?> logout() {
+        authService.logout();
         return ResponseEntity.ok(ApiResponse.success(null, "로그아웃되었습니다."));
     }
 
@@ -61,8 +61,8 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody RefreshRequestDto refreshRequestDto) {
         String refreshToken = refreshRequestDto.getRefreshToken();
-        String accessToken = authService.refreshToken(refreshToken);
-        return ResponseEntity.ok(ApiResponse.success(accessToken, "토큰이 갱신되었습니다."));
+        AuthResultDto authResultDto = authService.refreshToken(refreshToken);
+        return ResponseEntity.ok(ApiResponse.success(authResultDto, "토큰이 갱신되었습니다."));
     }
 
     private String extractRefreshTokenFromCookie(HttpServletRequest request) {

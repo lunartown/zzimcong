@@ -4,15 +4,15 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Data
-@NoArgsConstructor
+@Getter
+@Setter
 @Entity
-@Table(name = "product")
+@Table(name = "products")  // 복수형 사용
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,16 +30,18 @@ public class Product {
 
     @Min(0)
     @Column(nullable = false)
-    private Integer sale;
+    private int sale;
 
-    @Size(max = 150)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     @Size(max = 255)
     private String image;
 
+    @Column(nullable = false)
     private int availableQuantity;
-    
+
+    @Column(nullable = false)
     private int reservedQuantity;
 
     @Column(nullable = false, updatable = false)
@@ -48,7 +50,7 @@ public class Product {
     @Column(nullable = false)
     private boolean deleted = false;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 }

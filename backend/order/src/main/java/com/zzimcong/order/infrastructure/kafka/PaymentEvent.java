@@ -1,6 +1,6 @@
 package com.zzimcong.order.infrastructure.kafka;
 
-import com.zzimcong.order.application.dto.OrderRequest.PaymentType;
+import com.zzimcong.order.domain.entity.PaymentType;
 import lombok.Data;
 import lombok.Setter;
 

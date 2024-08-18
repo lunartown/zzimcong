@@ -1,9 +1,12 @@
 package com.zzimcong.order.api.controller;
 
-
-import com.zzimcong.order.application.dto.*;
+import com.zzimcong.order.application.dto.OrderItemResponse;
+import com.zzimcong.order.application.dto.OrderRequest;
+import com.zzimcong.order.application.dto.OrderResponse;
+import com.zzimcong.order.application.saga.OrderSaga;
 import com.zzimcong.order.application.service.OrderService;
-import com.zzimcong.order.common.UserInfo;
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderItem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -11,73 +14,72 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/orders")
+@RequestMapping("/api/orders")
 public class OrderController {
     private final OrderService orderService;
+    private final OrderSaga orderSaga;
 
     @Autowired
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, OrderSaga orderSaga) {
         this.orderService = orderService;
+        this.orderSaga = orderSaga;
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(UserInfo userInfo,
-                                                     @RequestBody OrderRequest orderRequest) {
-        OrderResponse order = orderService.createOrder(orderRequest);
-        return ResponseEntity.ok(order);
+    public ResponseEntity<Void> createOrder(@RequestBody OrderRequest orderRequest) {
+        orderSaga.startOrderSaga(orderRequest);
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getOrder(@PathVariable Long orderId) {
+        Order order = orderService.getOrder(orderId);
+        return ResponseEntity.ok(OrderResponse.createOrderResponse(order));
     }
 
     @GetMapping
-    public ResponseEntity<OrderListResponse> getOrderList(UserInfo userInfo,
-                                                          @RequestParam(defaultValue = "0") int page,
-                                                          @RequestParam(defaultValue = "10") int size) {
-        Page<OrderResponse> orderPage = orderService.getOrderList(PageRequest.of(page, size));
-        OrderListResponse response = new OrderListResponse();
-        response.setOrders(orderPage.getContent());
-        response.setTotalPages(orderPage.getTotalPages());
-        response.setTotalElements(orderPage.getTotalElements());
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Page<OrderResponse>> getOrderList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size);
+        Page<Order> orderPage = orderService.getOrderList(pageRequest);
+        Page<OrderResponse> responsePages = orderPage.map(OrderResponse::createOrderResponse);
+        return ResponseEntity.ok(responsePages);
     }
 
-    @GetMapping("/{order-id}")
-    public ResponseEntity<OrderResponse> getOrderDetails(UserInfo userInfo,
-                                                         @PathVariable("order-id") Long orderId) {
-        OrderResponse order = orderService.getOrderDetails(orderId);
-        return ResponseEntity.ok(order);
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Page<OrderResponse>> getUserOrders(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size);
+        Page<Order> orderPage = orderService.getUserOrders(userId, pageRequest);
+        Page<OrderResponse> responsePages = orderPage.map(OrderResponse::createOrderResponse);
+        return ResponseEntity.ok(responsePages);
     }
 
-    @GetMapping("/{order-id}/items")
-    public ResponseEntity<List<OrderItemResponse>> getOrderItems(UserInfo userInfo,
-                                                                 @PathVariable("order-id") Long orderId) {
-        List<OrderItemResponse> items = orderService.getOrderItems(orderId);
-        return ResponseEntity.ok(items);
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<Void> cancelOrder(@PathVariable Long orderId) {
+        orderService.cancelOrderByOrderId(orderId);
+        return ResponseEntity.accepted().build();
     }
 
-    @PutMapping("/{order-id}/status")
-    public ResponseEntity<OrderResponse> updateOrderStatus(UserInfo userInfo,
-                                                           @PathVariable("order-id") Long orderId,
-                                                           @RequestBody OrderStatusUpdateRequest request) {
-        OrderResponse updatedOrder = orderService.updateOrderStatus(orderId, request.getStatus());
-        return ResponseEntity.ok(updatedOrder);
+    @PostMapping("/{orderId}/refund")
+    public ResponseEntity<Void> requestRefund(@PathVariable Long orderId) {
+        orderService.requestRefund(orderId);
+        return ResponseEntity.accepted().build();
     }
 
-    @PostMapping("/{order-id}/cancel")
-    public ResponseEntity<OrderResponse> cancelOrder(UserInfo userInfo,
-                                                     @PathVariable("order-id") Long orderId) {
-        OrderResponse canceledOrder = orderService.cancelOrder(orderId);
-        return ResponseEntity.ok(canceledOrder);
-    }
 
-    @PostMapping("/{order-id}/refund")
-    public ResponseEntity<OrderResponse> refundOrder(UserInfo userInfo,
-                                                     @PathVariable("order-id") Long orderId) {
-        try {
-            OrderResponse refundedOrder = orderService.refundOrder(orderId);
-            return ResponseEntity.ok(refundedOrder);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+    @GetMapping("/{orderId}/items")
+    public ResponseEntity<List<OrderItemResponse>> getOrderItems(@PathVariable Long orderId) {
+        List<OrderItem> items = orderService.getOrderItems(orderId);
+        List<OrderItemResponse> itemResponses = items.stream()
+                .map(OrderItemResponse::createOrderItemResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(itemResponses);
     }
 }

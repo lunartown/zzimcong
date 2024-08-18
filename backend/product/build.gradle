@@ -20,6 +20,7 @@ configurations {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -73,12 +74,20 @@ dependencies {
     //swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
 
-
     //netflix eureka
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
     //openfeign
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+    //kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    //custom inventory-core
+    implementation 'com.zzimcong:zzimcong-inventory-core:1.0-SNAPSHOT'
+
+    //p6spy
+    implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0'
 }
 
 dependencyManagement {

@@ -1,5 +1,6 @@
 package com.zzimcong.order.application.dto;
 
+import com.zzimcong.order.domain.entity.PaymentType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,8 +20,4 @@ public class OrderRequest {
     private String phone;
     private String message;
     private List<OrderItemRequest> items;
-
-    public enum PaymentType {
-        KB, KAKAO, NAVER, KEB, IBK, NH
-    }
 }

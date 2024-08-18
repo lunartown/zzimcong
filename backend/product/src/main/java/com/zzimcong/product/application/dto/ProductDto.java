@@ -24,7 +24,7 @@ public class ProductDto {
         this.sale = product.getSale();
         this.content = product.getContent();
         this.image = product.getImage();
-        this.count = product.getCount();
+        this.count = product.getAvailableQuantity();
         this.createdAt = product.getCreatedAt().toString();
         this.deleted = product.isDeleted();
     }

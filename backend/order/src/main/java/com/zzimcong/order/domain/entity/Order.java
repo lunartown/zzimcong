@@ -1,7 +1,5 @@
 package com.zzimcong.order.domain.entity;
 
-import com.zzimcong.order.application.dto.OrderRequest;
-import com.zzimcong.order.application.dto.OrderRequest.PaymentType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,76 +15,59 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "orders")
+@Table(name = "orders") // 예약어 회피를 위해 복수형 사용
 public class Order extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_id")
-    public Long id;
+    private Long id;
 
-    @Column(nullable = false)
-    public Long userId;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @Column(nullable = false)
-    public BigDecimal orderAmount;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal orderAmount;
 
-    @Column(nullable = false)
-    public BigDecimal paymentAmount;
-
-    public PaymentType payment;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal paymentAmount;
 
     @Enumerated(EnumType.STRING)
-    @ColumnDefault("'PENDING'")
-    public OrderState state;
+    @Column(length = 20)
+    private PaymentType payment;
 
-    public boolean deleted = false;
-
-    public String reason;
-
-    @Column(nullable = false)
-    public String name;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    @ColumnDefault("'CREATED'")
+    private OrderStatus status = OrderStatus.CREATED;
 
     @Column(nullable = false)
-    public String addr;
+    private boolean deleted = false;
 
-    @Column(nullable = false)
-    public String addrDetail;
+    @Column(length = 255)
+    private String reason;
 
-    @Column(nullable = false)
-    public String zipcode;
+    @Column(nullable = false, length = 64)
+    private String name;
 
-    @Column(nullable = false)
-    public String phone;
+    @Column(nullable = false, length = 255)
+    private String addr;
 
-    public String message;
+    @Column(nullable = false, length = 255)
+    private String addrDetail;
 
-    public LocalDateTime deliveredAt;
+    @Column(nullable = false, length = 10)
+    private String zipcode;
 
-    public LocalDateTime refundRequestedAt;
+    @Column(nullable = false, length = 20)
+    private String phone;
+
+    @Column(length = 255)
+    private String message;
+
+    private LocalDateTime deliveredAt;
+
+    private LocalDateTime refundRequestedAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    public List<OrderItem> orderItems = new ArrayList<>();
-
-    private Order(Long userId, OrderRequest orderRequest) {
-        this.userId = userId;
-        this.orderAmount = orderRequest.getOrderAmount();
-        this.paymentAmount = orderRequest.getPaymentAmount();
-        this.payment = orderRequest.getPayment();
-        this.name = orderRequest.getName();
-        this.addr = orderRequest.getAddr();
-        this.addrDetail = orderRequest.getAddrDetail();
-        this.zipcode = orderRequest.getZipcode();
-        this.phone = orderRequest.getPhone();
-        this.message = orderRequest.getMessage();
-    }
-
-    //factory method
-    public static Order createOrder(Long userId, OrderRequest orderRequest) {
-        return new Order(userId, orderRequest);
-    }
-
-    public void addOrderItem(OrderItem item) {
-        this.orderItems.add(item);
-        item.setOrder(this);
-    }
+    private List<OrderItem> orderItems = new ArrayList<>();
 }

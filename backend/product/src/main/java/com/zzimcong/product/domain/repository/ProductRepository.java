@@ -8,8 +8,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE (:search IS NULL OR p.name LIKE %:search%) AND (:categoryId IS NULL OR p.category.id = :categoryId)")
-    Page<Product> findAllWithFilters(@Param("search") String search, @Param("categoryId") Long categoryId, Pageable pageable);
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE (:search IS NULL OR p.name LIKE %:search%) AND p.category.id IN :categoryIds")
+    Page<Product> findAllWithFilters(
+            @Param("search") String search,
+            @Param("categoryIds") List<Long> categoryIds,
+            Pageable pageable
+    );
 }

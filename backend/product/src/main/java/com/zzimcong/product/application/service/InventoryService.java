@@ -5,6 +5,7 @@ import com.zzimcong.product.domain.entity.InventoryEventType;
 import com.zzimcong.product.domain.entity.Product;
 import com.zzimcong.product.domain.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

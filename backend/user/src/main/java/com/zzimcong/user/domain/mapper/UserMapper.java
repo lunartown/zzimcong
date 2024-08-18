@@ -1,11 +1,11 @@
 package com.zzimcong.user.domain.mapper;
 
-import com.zzimcong.user.common.util.AESUtil;
 import com.zzimcong.user.application.dto.SignupRequestDto;
-import com.zzimcong.user.domain.entity.User;
 import com.zzimcong.user.application.dto.UserModifyRequestDto;
 import com.zzimcong.user.application.dto.UserResponseDto;
 import com.zzimcong.user.common.exception.InternalServerErrorException;
+import com.zzimcong.user.common.util.AESUtil;
+import com.zzimcong.user.domain.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -65,7 +65,7 @@ public class UserMapper {
         if (user == null || dto == null) {
             return null;
         }
-        user.setName(aesUtil.encrypt(dto.getUsername()));
+        user.setName(aesUtil.encrypt(dto.getName()));
         user.setPhone(aesUtil.encrypt(dto.getPhone()));
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         return user;

@@ -1,10 +1,11 @@
 package com.zzimcong.product.api.controller;
 
-import com.zzimcong.product.application.dto.CategoryCreateRequest;
+import com.zzimcong.product.application.dto.CategoryCreateRequestDto;
 import com.zzimcong.product.application.dto.CategoryDto;
-import com.zzimcong.product.domain.entity.Category;
 import com.zzimcong.product.application.service.CategoryService;
+import com.zzimcong.product.domain.entity.Category;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,14 +28,15 @@ public class CategoryController {
 
     //카테고리 추가
     @PostMapping
-    public CategoryDto createCategory(@RequestBody CategoryCreateRequest request) {
-        return categoryService.createCategory(request.getName(), request.getParentCategoryId());
+    public ResponseEntity<Category> createCategory(@RequestBody CategoryCreateRequestDto request) {
+        Category category = categoryService.createCategory(request.getName(), request.getParentCategoryId());
+        return ResponseEntity.ok(category);
     }
 
     //카테고리 수정
     @PutMapping("/{id}")
-    public CategoryDto updateCategory(@PathVariable Long id, @RequestBody Category category) {
-        return categoryService.updateCategory(id, category);
+    public CategoryDto updateCategory(@PathVariable Long id, @RequestBody CategoryDto categoryDto) {
+        return categoryService.updateCategory(id, categoryDto);
     }
 
     //카테고리 삭제

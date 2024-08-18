@@ -1,14 +1,13 @@
 package com.zzimcong.user.application.service;
 
-import com.zzimcong.user.common.exception.BadRequestException;
-import com.zzimcong.user.common.util.AESUtil;
 import com.zzimcong.user.application.dto.SignupRequestDto;
-import com.zzimcong.user.domain.entity.User;
 import com.zzimcong.user.application.dto.UserModifyRequestDto;
 import com.zzimcong.user.application.dto.UserResponseDto;
 import com.zzimcong.user.common.exception.ConflictException;
 import com.zzimcong.user.common.exception.ErrorCode;
 import com.zzimcong.user.common.exception.NotFoundException;
+import com.zzimcong.user.common.util.AESUtil;
+import com.zzimcong.user.domain.entity.User;
 import com.zzimcong.user.domain.mapper.UserMapper;
 import com.zzimcong.user.domain.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -59,8 +58,8 @@ public class UserService {
 
     //유저 수정
     @Transactional
-    public UserResponseDto updateUser(UserModifyRequestDto userModifyRequestDto) {
-        User findUser = userRepository.findByEmail(aesUtil.encrypt(userModifyRequestDto.getEmail()))
+    public UserResponseDto updateUser(Long id, UserModifyRequestDto userModifyRequestDto) {
+        User findUser = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         findUser = userMapper.updateFromDto(findUser, userModifyRequestDto);
         User updatedUser = userRepository.save(findUser);
@@ -68,11 +67,12 @@ public class UserService {
     }
 
     //유저 삭제
-    public UserResponseDto signoutUser(String email) {
-        User findUser = userRepository.findByEmail(aesUtil.encrypt(email))
+    public UserResponseDto signoutUser(Long id) {
+        User findUser = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
         findUser.setSignout(true);
         User signoutUser = userRepository.save(findUser);
         return userMapper.toDto(signoutUser);
     }
+
 }

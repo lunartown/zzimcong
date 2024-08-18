@@ -12,12 +12,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -33,28 +31,27 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
     }
+    
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api/v1/auth/") || path.startsWith("/api/v1/email-verifications/");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         try {
-
-            final String authorizationHeader = request.getHeader("Authorization");
-
             Long id = null;
-            String jwt = null;
-
-            if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-                jwt = authorizationHeader.substring(7);
-                try {
-                    id = jwtUtil.extractId(jwt);
-                } catch (ExpiredJwtException e) {
-                    log.warn("JWT 토큰이 만료되었습니다", e);
-                    throw new UnauthorizedException(ErrorCode.EXPIRED_TOKEN);
-                } catch (Exception e) {
-                    log.error("JWT 토큰에서 id를 추출하는 중 오류가 발생했습니다", e);
-                    throw new UnauthorizedException(ErrorCode.INVALID_TOKEN);
-                }
+            String jwt = jwtUtil.extractJwtFromRequest(request);
+            try {
+                id = jwtUtil.extractId(jwt);
+            } catch (ExpiredJwtException e) {
+                log.warn("JWT 토큰이 만료되었습니다", e);
+                throw new UnauthorizedException(ErrorCode.EXPIRED_TOKEN);
+            } catch (Exception e) {
+                log.error("JWT 토큰에서 id를 추출하는 중 오류가 발생했습니다", e);
+                throw new UnauthorizedException(ErrorCode.INVALID_TOKEN);
             }
 
             if (id != null && SecurityContextHolder.getContext().getAuthentication() == null) {

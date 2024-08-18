@@ -1,4 +1,7 @@
-CREATE DATABASE IF NOT EXISTS zzimcong CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP DATABASE IF EXISTS zzimcong;
+CREATE DATABASE IF NOT EXISTS zzimcong
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
 
 -- 데이터베이스를 사용하도록 설정
 USE zzimcong;
@@ -10,102 +13,110 @@ SET character_set_connection = utf8mb4;
 SET character_set_results = utf8mb4;
 
 -- 사용자 테이블
-CREATE TABLE IF NOT EXISTS user (
-    user_id BIGINT NOT NULL AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS users (
+    user_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     email VARCHAR(64) NOT NULL,
-    username VARCHAR(64) NOT NULL,
-    password VARCHAR(64) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    abuser BIT(1) DEFAULT 0,
-    signout BIT(1) DEFAULT 0,
-    role VARCHAR(20) DEFAULT 'USER',
-    PRIMARY KEY (user_id)
-);
-CREATE INDEX idx_user_email ON user(email);
+    name VARCHAR(64) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(64) NOT NULL,
+    abuser TINYINT(1) NOT NULL DEFAULT 0,
+    signout TINYINT(1) NOT NULL DEFAULT 0,
+    role ENUM('USER', 'ADMIN', 'SELLER') NOT NULL DEFAULT 'USER',
+    PRIMARY KEY (user_id),
+    UNIQUE KEY uk_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 주소 테이블
-CREATE TABLE address (
+CREATE TABLE IF NOT EXISTS address (
     addr_id BIGINT NOT NULL AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
     name VARCHAR(64) NOT NULL,
     addr VARCHAR(255) NOT NULL,
     addrDetail VARCHAR(255) NOT NULL,
     zipcode VARCHAR(10) NOT NULL,
-    tel VARCHAR(20) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
     message VARCHAR(255),
-    def VARCHAR(1) DEFAULT 'N',
+    is_default TINYINT(1) DEFAULT 0,
     PRIMARY KEY (addr_id),
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
 -- 카테고리 테이블
-CREATE TABLE category (
-    category_id BIGINT NOT NULL AUTO_INCREMENT,
-    parent_category_id BIGINT,
+CREATE TABLE IF NOT EXISTS categories (
+    category_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    parent_category_id BIGINT UNSIGNED,
     name VARCHAR(64) NOT NULL,
+    depth INT NOT NULL DEFAULT 0,
+    path VARCHAR(255),
     PRIMARY KEY (category_id),
-    FOREIGN KEY (parent_category_id) REFERENCES category(category_id)
-);
+    FOREIGN KEY (parent_category_id) REFERENCES categories(category_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- 상품 테이블
-CREATE TABLE product (
-    product_id BIGINT NOT NULL AUTO_INCREMENT,
-    category_id BIGINT NOT NULL,
+CREATE TABLE IF NOT EXISTS products (
+    product_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    category_id BIGINT UNSIGNED NOT NULL,
     name VARCHAR(255) NOT NULL,
     price INT NOT NULL,
     sale INT NOT NULL,
     content TEXT,
     image VARCHAR(255),
-    count INT NOT NULL,
+    available_quantity INT NOT NULL,
+    reserved_quantity INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted VARCHAR(1) DEFAULT 'N',
+    deleted BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (product_id),
-    FOREIGN KEY (category_id) REFERENCES category(category_id)
-);
-CREATE INDEX idx_product_name ON product(name);
+    FOREIGN KEY (category_id) REFERENCES categories(category_id),
+    INDEX idx_product_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
--- 장바구니 상품 테이블
-CREATE TABLE cart_item (
-    cart_item_id BIGINT NOT NULL AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
+-- 장바구니 테이블
+CREATE TABLE IF NOT EXISTS cart_items (
+    cart_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
     count INT NOT NULL,
     PRIMARY KEY (cart_item_id),
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
-    FOREIGN KEY (product_id) REFERENCES product(product_id)
-);
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 주문 테이블
-CREATE TABLE `order` (
-    order_id BIGINT NOT NULL AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
-    order_amount INT NOT NULL,
-    payment_amount INT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    payment VARCHAR(20),
-    status VARCHAR(20) DEFAULT '주문완료',
-    deleted VARCHAR(1) DEFAULT 'N',
+CREATE TABLE IF NOT EXISTS orders (
+    order_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    order_amount DECIMAL(10,2) NOT NULL,
+    payment_amount DECIMAL(10,2) NOT NULL,
+    payment ENUM('KB', 'KAKAO', 'NAVER', 'KEB', 'IBK', 'NH') NOT NULL,
+    status ENUM('CREATED', 'STOCK_RESERVED', 'PAYMENT_PROCESSED', 'SAGA_FAILED', 'ORDER_COMPLETED', 
+                'PREPARING_FOR_SHIPMENT', 'SHIPPING', 'DELIVERED', 'ORDER_CONFIRMED', 'CANCELED', 
+                'REFUND_REQUESTED', 'REFUND_COMPLETED') NOT NULL DEFAULT 'CREATED',
+    deleted BOOLEAN DEFAULT FALSE,
     reason VARCHAR(255),
-    name VARCHAR(64),
+    name VARCHAR(64) NOT NULL,
     addr VARCHAR(255) NOT NULL,
-    addrDetail VARCHAR(255) NOT NULL,
+    addr_detail VARCHAR(255) NOT NULL,
     zipcode VARCHAR(10) NOT NULL,
-    tel VARCHAR(20) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
     message VARCHAR(255),
+    delivered_at DATETIME,
+    refund_requested_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
-);
-CREATE INDEX idx_order_user_id ON `order`(user_id);
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    INDEX idx_order_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 주문 상품 테이블
-CREATE TABLE order_item (
-    order_item_id BIGINT NOT NULL AUTO_INCREMENT,
-    order_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
-    price INT,
+CREATE TABLE IF NOT EXISTS order_items (
+    order_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id BIGINT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
     quantity INT NOT NULL,
     PRIMARY KEY (order_item_id),
-    FOREIGN KEY (order_id) REFERENCES `order`(order_id),
-    FOREIGN KEY (product_id) REFERENCES product(product_id)
-);
+    FOREIGN KEY (order_id) REFERENCES orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

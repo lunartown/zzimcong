@@ -12,7 +12,7 @@ public class SwaggerConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("찜콩 API")
+                        .title("찜콩 Product API")
                         .version("1.0")
                         .description("선착순 구매 기능이 있는 이커머스 서비스 API 문서"));
     }

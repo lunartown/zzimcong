@@ -2,10 +2,12 @@ package com.zzimcong.order.application.dto;
 
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderItem;
-import com.zzimcong.order.domain.entity.OrderState;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.order.domain.entity.PaymentType;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,10 +16,10 @@ import java.util.stream.Collectors;
 public class OrderResponse {
     public Long id;
     public Long userId;
-    public Long orderAmount;
-    public Long paymentAmount;
-    public String payment;
-    public OrderState status;
+    public BigDecimal orderAmount;
+    public BigDecimal paymentAmount;
+    public PaymentType payment;
+    public OrderStatus status;
     public boolean deleted = false;
     public String reason;
     public String name;

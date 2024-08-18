@@ -3,8 +3,9 @@ package com.zzimcong.user.application.service;
 import com.zzimcong.user.application.dto.AuthResultDto;
 import com.zzimcong.user.application.dto.LoginRequestDto;
 import com.zzimcong.user.application.dto.SignupRequestDto;
-import com.zzimcong.user.common.exception.UnauthorizedException;
 import com.zzimcong.user.common.exception.ErrorCode;
+import com.zzimcong.user.common.exception.UnauthorizedException;
+import com.zzimcong.user.common.util.SecurityUtil;
 import com.zzimcong.user.infrastructure.security.jwt.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import lombok.extern.slf4j.Slf4j;
@@ -52,19 +53,17 @@ public class AuthService {
         }
     }
 
-    public void logout(String accessToken) {
+    public void logout() {
+        Long id = SecurityUtil.getCurrentUserId();
         try {
-            if (!jwtUtil.validateToken(accessToken)) {
-                throw new UnauthorizedException(ErrorCode.INVALID_TOKEN);
-            }
-            Long id = jwtUtil.extractId(accessToken);
             tokenService.deleteRefreshToken(String.valueOf(id));
         } catch (ExpiredJwtException e) {
             throw new UnauthorizedException(ErrorCode.EXPIRED_TOKEN);
         }
+        log.info("User {} logged out successfully", id);
     }
 
-    public String refreshToken(String refreshToken) {
+    public AuthResultDto refreshToken(String refreshToken) {
         if (refreshToken == null) {
             throw new UnauthorizedException(ErrorCode.TOKEN_NOT_FOUND);
         }
@@ -73,8 +72,7 @@ public class AuthService {
                 throw new UnauthorizedException(ErrorCode.INVALID_TOKEN);
             }
             Long id = jwtUtil.extractId(refreshToken);
-            userService.getUserById(id);
-            return jwtUtil.generateAccessToken(id);
+            return generateAuthResultDto(id);
         } catch (ExpiredJwtException e) {
             throw new UnauthorizedException(ErrorCode.EXPIRED_TOKEN);
         }

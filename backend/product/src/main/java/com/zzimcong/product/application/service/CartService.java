@@ -1,6 +1,6 @@
 package com.zzimcong.product.application.service;
 
-import com.zzimcong.product.application.dto.cartItemDto;
+import com.zzimcong.product.application.dto.CartItemDto;
 import com.zzimcong.product.common.exception.BadRequestException;
 import com.zzimcong.product.common.exception.ConflictException;
 import com.zzimcong.product.common.exception.ErrorCode;
@@ -25,11 +25,11 @@ public class CartService {
     private final ProductRepository productRepository;
 
     @Transactional(readOnly = true)
-    public List<cartItemDto> getCartItemsForUser(Long userId) {
+    public List<CartItemDto> getCartItemsForUser(Long userId) {
         List<CartItem> cartItems = cartRepository.findByUserId(userId);
         log.info("Retrieved {} cart products for user ID: {}", cartItems.size(), userId);
         return cartItems.stream()
-                .map(cartItemDto::of)
+                .map(CartItemDto::of)
                 .toList();
     }
 
@@ -42,7 +42,7 @@ public class CartService {
             throw new BadRequestException(ErrorCode.INVALID_QUANTITY);
         }
 
-        if (product.getCount() < count) {
+        if (product.getAvailableQuantity() < count) {
             throw new ConflictException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
@@ -74,7 +74,7 @@ public class CartService {
         Product product = cartItem.getProduct();
         int stockDifference = count - cartItem.getCount();
 
-        if (product.getCount() < stockDifference) {
+        if (product.getAvailableQuantity() < stockDifference) {
             throw new ConflictException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
