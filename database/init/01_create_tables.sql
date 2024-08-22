@@ -98,6 +98,17 @@ CREATE TABLE IF NOT EXISTS order_addresses (
     PRIMARY KEY (order_address_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 결제 정보 테이블
+CREATE TABLE IF NOT EXISTS payment_details (
+    payment_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    cardNumber VARCHAR(16) NOT NULL,
+    cardHolderName VARCHAR(64) NOT NULL,
+    expirationDate VARCHAR(5) NOT NULL,
+    cvv VARCHAR(3) NOT NULL,
+    PRIMARY KEY (payment_id),
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+)
+
 -- 주문 테이블
 CREATE TABLE IF NOT EXISTS orders (
     order_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -105,18 +116,22 @@ CREATE TABLE IF NOT EXISTS orders (
     order_address_id BIGINT UNSIGNED,
     order_amount DECIMAL(10,2) NOT NULL,
     payment_amount DECIMAL(10,2) NOT NULL,
-    payment ENUM('KB', 'KAKAO', 'NAVER', 'KEB', 'IBK', 'NH') NOT NULL,
+    payment_id BIGINT UNSIGNED,
+    payment_method ENUM('KB', 'KAKAO', 'NAVER', 'KEB', 'IBK', 'NH') NOT NULL,
     status ENUM('CREATED', 'STOCK_RESERVED', 'PAYMENT_PROCESSED', 'SAGA_FAILED', 'ORDER_COMPLETED', 
                 'PREPARING_FOR_SHIPMENT', 'SHIPPING', 'DELIVERED', 'ORDER_CONFIRMED', 'CANCELED', 
                 'REFUND_REQUESTED', 'REFUND_COMPLETED') NOT NULL DEFAULT 'CREATED',
     deleted BOOLEAN DEFAULT FALSE,
-    reason VARCHAR(255),
+    cancellation_reason VARCHAR(255),
+    refund_reason VARCHAR(255),
     delivered_at DATETIME,
     refund_requested_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (order_address_id) REFERENCES order_addresses(order_address_id),
+    FOREIGN KEY (payment_id) REFERENCES payment_details(payment_id),
     INDEX idx_order_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

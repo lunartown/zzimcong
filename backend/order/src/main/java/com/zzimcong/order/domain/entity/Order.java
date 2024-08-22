@@ -27,7 +27,7 @@ public class Order extends BaseEntity {
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_address_id")
-    private OrderAddress orderAddress;
+    private OrderAddressRequest orderAddressRequest;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal orderAmount;
@@ -35,20 +35,23 @@ public class Order extends BaseEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal paymentAmount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private PaymentType payment;
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "payment_details_id")
+    private PaymentDetails paymentDetails;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
-    @ColumnDefault("'CREATED'")
-    private OrderStatus status = OrderStatus.CREATED;
+    @ColumnDefault("'ORDER_COMPLETED'")
+    private OrderStatus status = OrderStatus.ORDER_COMPLETED;
 
     @Column(nullable = false)
     private boolean deleted = false;
 
     @Column(length = 255)
-    private String reason;
+    private String cancellationReason;
+
+    @Column(length = 255)
+    private String refundReason;
 
     private LocalDateTime deliveredAt;
 

@@ -8,6 +8,7 @@ public enum ErrorCode {
     INVALID_INPUT("잘못된 입력입니다."),
     INVALID_ORDER_STATUS("유효하지 않은 주문 상태입니다."),
     MISSING_REQUEST_BODY("요청 바디가 없습니다."),
+    PAYMENT_FAILED("결제에 실패했습니다."),
 
     // UnauthorizedException (401)
 
@@ -16,6 +17,7 @@ public enum ErrorCode {
 
     // NotFoundException (404)
     RESOURCE_NOT_FOUND("요청한 리소스를 찾을 수 없습니다."),
+    TEMP_ORDER_NOT_FOUND("임시 주문을 찾을 수 없습니다."),
     ORDER_NOT_FOUND("주문을 찾을 수 없습니다."),
 
     // MethodNotAllowedException (405)
@@ -26,6 +28,7 @@ public enum ErrorCode {
     CANNOT_CANCEL_ORDER("주문을 취소할 수 없습니다."),
 
     // InternalServerErrorException (500)
+    ORDER_UPDATE_FAILED("주문 정보 업데이트 중 오류가 발생했습니다."),
     RESOURCE_LOAD_FAILED("내부 리소스 로딩에 실패했습니다."),
     INTERNAL_SERVER_ERROR("서버 내부 오류가 발생했습니다."),
     UNKNOWN_ERROR("알 수 없는 오류가 발생했습니다.");

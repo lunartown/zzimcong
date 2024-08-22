@@ -1,7 +1,8 @@
 package com.zzimcong.order.application.mapper;
 
+import com.zzimcong.order.application.dto.OrderCreationRequest;
 import com.zzimcong.order.application.dto.OrderItemRequest;
-import com.zzimcong.order.application.dto.OrderRequest;
+import com.zzimcong.order.application.dto.OrderPreparationRequest;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderItem;
 import org.mapstruct.*;
@@ -11,10 +12,10 @@ public interface OrderRequestMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)
-    @Mapping(target = "status", constant = "CREATED")
+    @Mapping(target = "status", constant = "TEMP")
     @Mapping(target = "deleted", constant = "false")
     @Mapping(target = "orderItems", source = "items")
-    Order orderRequestToOrder(OrderRequest orderRequest);
+    Order orderPreperationRequestToOrder(OrderPreparationRequest orderPreparationRequest);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "order", ignore = true)
@@ -28,5 +29,5 @@ public interface OrderRequestMapper {
     }
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateOrderFromRequest(OrderRequest orderRequest, @MappingTarget Order order);
+    void updateOrderFromRequest(OrderCreationRequest orderCreationRequest, @MappingTarget Order order);
 }

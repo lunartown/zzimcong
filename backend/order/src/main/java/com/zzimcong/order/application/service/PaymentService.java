@@ -1,7 +1,7 @@
 package com.zzimcong.order.application.service;
 
 import com.zzimcong.order.application.dto.PaymentRequest;
-import com.zzimcong.order.application.dto.PaymentResult;
+import com.zzimcong.order.application.dto.PaymentResponse;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +28,12 @@ public class PaymentService {
         // 90% 확률로 결제 성공, 10% 확률로 결제 실패 시뮬레이션
         boolean isSuccess = random.nextInt(100) < 90;
 
-        PaymentResult result = new PaymentResult(request.getOrderId(), isSuccess);
+        PaymentResponse result = new PaymentResponse(request.getUserId(), request.getUuid(), isSuccess);
 
         if (isSuccess) {
-            log.info("결제 성공: 주문 ID {}", request.getOrderId());
+            log.info("결제 성공: 주문 ID {}", request.getUuid());
         } else {
-            log.info("결제 실패: 주문 ID {}", request.getOrderId());
+            log.info("결제 실패: 주문 ID {}", request.getUuid());
         }
 
         // 결제 결과를 Kafka로 전송
@@ -45,7 +45,7 @@ public class PaymentService {
         log.info("환불 처리 완료: 주문 ID {}, 금액 {}", order.getId(), order.getPaymentAmount());
 
         // 환불 결과를 Kafka로 전송
-        PaymentResult refundResult = new PaymentResult(order.getId(), true, "REFUNDED");
+        PaymentResponse refundResult = new PaymentResponse(order.getUserId(), order.getId(), true, "REFUNDED");
         kafkaTemplate.send("payment-results", refundResult);
     }
 }

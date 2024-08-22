@@ -8,19 +8,22 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class PaymentResult implements KafkaMessage {
-    private Long orderId;
+public class PaymentResponse implements KafkaMessage {
+    private Long userId;
+    private String uuid;
     private boolean success;
     private String status;
 
-    public PaymentResult(Long orderId, boolean success) {
-        this.orderId = orderId;
+    public PaymentResponse(Long userId, String uuid, boolean success) {
+        this.userId = userId;
+        this.uuid = uuid;
         this.success = success;
         this.status = success ? "PAID" : "FAILED";
     }
 
-    public PaymentResult(Long orderId, boolean success, String status) {
-        this.orderId = orderId;
+    public PaymentResponse(Long userId, String uuid, boolean success, String status) {
+        this.userId = userId;
+        this.uuid = uuid;
         this.success = success;
         this.status = status;
     }

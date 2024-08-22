@@ -1247,7 +1247,7 @@ package com.zzimcong.order.application.saga;
 
 import com.zzimcong.order.application.dto.OrderRequest;
 import com.zzimcong.order.application.dto.PaymentRequest;
-import com.zzimcong.order.application.dto.PaymentResult;
+import com.zzimcong.order.application.dto.PaymentResponse;
 import com.zzimcong.order.application.service.OrderService;
 import com.zzimcong.order.application.service.PaymentService;
 import com.zzimcong.order.application.service.ProductService;
@@ -1734,7 +1734,7 @@ File: ./order/src/main/java/com/zzimcong/order/application/service/PaymentServic
 package com.zzimcong.order.application.service;
 
 import com.zzimcong.order.application.dto.PaymentRequest;
-import com.zzimcong.order.application.dto.PaymentResult;
+import com.zzimcong.order.application.dto.PaymentResponse;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.extern.slf4j.Slf4j;

@@ -6,8 +6,9 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum OrderStatus {
-    CREATED("주문 생성됨"),
+    TEMP("임시 주문"),
     STOCK_RESERVED("재고 확보 완료"),
+    PAYMENT_REQUESTED("결제 요청됨"),
     PAYMENT_PROCESSED("결제 완료"),
     SAGA_FAILED("주문 처리 실패"),
     ORDER_COMPLETED("주문 완료"),

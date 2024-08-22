@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaymentRequest implements KafkaMessage {
-    private Long orderId;
+    private Long userId;
+    private String uuid;
+    private PaymentDetailsRequest paymentDetails;
     private BigDecimal amount;
 }
