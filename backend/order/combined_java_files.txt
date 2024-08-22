@@ -1,0 +1,2231 @@
+File: ./src/test/java/com/zzimcong/order/OrderApplicationTests.java
+--------
+package com.zzimcong.order;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class OrderApplicationTests {
+
+    @Test
+    void contextLoads() {
+    }
+
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/WebMvcConfig.java
+--------
+package com.zzimcong.order.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
+
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
+
+    private final UserInfoArgumentResolver userInfoArgumentResolver;
+
+    public WebMvcConfig(UserInfoArgumentResolver userInfoArgumentResolver) {
+        this.userInfoArgumentResolver = userInfoArgumentResolver;
+    }
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(userInfoArgumentResolver);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/SecurityConfig.java
+--------
+package com.zzimcong.order.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Slf4j(topic = "security")
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        log.info("Configuring security filter chain");
+        http
+                .csrf(csrf -> {
+                    csrf.disable();
+                    log.info("CSRF is disabled");
+                })
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/orders/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .anyRequest().permitAll()
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/KafkaConfig.java
+--------
+package com.zzimcong.order.config;
+
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Configuration
+public class KafkaConfig {
+
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String bootstrapServers;
+
+    @Bean
+    public <T> ProducerFactory<String, T> producerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
+    public <T> KafkaTemplate<String, T> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/SwaggerConfig.java
+--------
+package com.zzimcong.order.config;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class SwaggerConfig {
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("찜콩 API")
+                        .version("1.0")
+                        .description("선착순 구매 기능이 있는 이커머스 서비스 API 문서"));
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/UserInfoArgumentResolver.java
+--------
+package com.zzimcong.order.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zzimcong.order.common.UserInfo;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.core.MethodParameter;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
+
+import java.util.Base64;
+
+@Component
+public class UserInfoArgumentResolver implements HandlerMethodArgumentResolver {
+
+    private final ObjectMapper objectMapper;
+
+    public UserInfoArgumentResolver(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.getParameterType().equals(UserInfo.class);
+    }
+
+    @Override
+    public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+                                  NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+        HttpServletRequest request = (HttpServletRequest) webRequest.getNativeRequest();
+        String userInfoHeader = request.getHeader("X-User-Info");
+
+        if (userInfoHeader != null) {
+            String decodedUserInfo = new String(Base64.getDecoder().decode(userInfoHeader));
+            return objectMapper.readValue(decodedUserInfo, UserInfo.class);
+        }
+
+        return null;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/JpaConfig.java
+--------
+package com.zzimcong.order.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+
+@Configuration
+@EnableJpaAuditing
+public class JpaConfig {
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/config/CorsConfig.java
+--------
+package com.zzimcong.order.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+@Configuration
+public class CorsConfig {
+
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        config.addAllowedOrigin("http://localhost:3000"); // React 앱의 주소
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        source.registerCorsConfiguration("/api/**", config);
+        return new CorsFilter(source);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/OrderApplication.java
+--------
+package com.zzimcong.order;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.statemachine.config.EnableStateMachine;
+
+@SpringBootApplication
+@EnableFeignClients
+@EnableStateMachine
+@EnableScheduling
+public class OrderApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(OrderApplication.class, args);
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/util/RedisUtil.java
+--------
+package com.zzimcong.order.common.util;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+
+@Service
+@RequiredArgsConstructor
+public class RedisUtil {
+    private final StringRedisTemplate redisTemplate;//Redis에 접근하기 위한 Spring의 Redis 템플릿 클래스
+
+    public String getData(String key) {//지정된 키(key)에 해당하는 데이터를 Redis에서 가져오는 메서드
+        ValueOperations<String, String> valueOperations = redisTemplate.opsForValue();
+        return valueOperations.get(key);
+    }
+
+    public void setData(String key, String value) {//지정된 키(key)에 값을 저장하는 메서드
+        ValueOperations<String, String> valueOperations = redisTemplate.opsForValue();
+        valueOperations.set(key, value);
+    }
+
+    public void setDataExpire(String key, String value, long duration) {//지정된 키(key)에 값을 저장하고, 지정된 시간(duration) 후에 데이터가 만료되도록 설정하는 메서드
+        ValueOperations<String, String> valueOperations = redisTemplate.opsForValue();
+        Duration expireDuration = Duration.ofSeconds(duration);
+        valueOperations.set(key, value, expireDuration);
+    }
+
+    public void deleteData(String key) {//지정된 키(key)에 해당하는 데이터를 Redis에서 삭제하는 메서드
+        redisTemplate.delete(key);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/UserInfo.java
+--------
+package com.zzimcong.order.common;
+
+import lombok.Data;
+
+@Data
+public class UserInfo {
+    private Long id;
+    private String username;
+    private String role;
+    // 필요한 다른 필드들...
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/ErrorCode.java
+--------
+package com.zzimcong.order.common.exception;
+
+import lombok.Getter;
+
+@Getter
+public enum ErrorCode {
+    // BadRequestException (400)
+    INVALID_INPUT("잘못된 입력입니다."),
+    INVALID_ORDER_STATUS("유효하지 않은 주문 상태입니다."),
+    MISSING_REQUEST_BODY("요청 바디가 없습니다."),
+
+    // UnauthorizedException (401)
+
+    // ForbiddenException (403)
+    ACCESS_DENIED("접근이 거부되었습니다."),
+
+    // NotFoundException (404)
+    RESOURCE_NOT_FOUND("요청한 리소스를 찾을 수 없습니다."),
+    ORDER_NOT_FOUND("주문을 찾을 수 없습니다."),
+
+    // MethodNotAllowedException (405)
+    METHOD_NOT_ALLOWED("허용되지 않은 HTTP 메서드입니다."),
+
+    // ConflictException (409)
+    INSUFFICIENT_STOCK("상품의 재고가 부족합니다."),
+    CANNOT_CANCEL_ORDER("주문을 취소할 수 없습니다."),
+
+    // InternalServerErrorException (500)
+    RESOURCE_LOAD_FAILED("내부 리소스 로딩에 실패했습니다."),
+    INTERNAL_SERVER_ERROR("서버 내부 오류가 발생했습니다."),
+    UNKNOWN_ERROR("알 수 없는 오류가 발생했습니다.");
+
+    private final String message;
+
+    ErrorCode(String message) {
+        this.message = message;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/ForbiddenException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class ForbiddenException extends BaseException {
+    public ForbiddenException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public ForbiddenException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/UnauthorizedException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class UnauthorizedException extends BaseException {
+    public UnauthorizedException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public UnauthorizedException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/ConflictException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class ConflictException extends BaseException {
+    public ConflictException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public ConflictException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/MethodNotAllowedException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class MethodNotAllowedException extends BaseException {
+    public MethodNotAllowedException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public MethodNotAllowedException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/InternalServerErrorException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class InternalServerErrorException extends BaseException {
+    public InternalServerErrorException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public InternalServerErrorException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/GlobalExceptionHandler.java
+--------
+package com.zzimcong.order.common.exception;
+
+import com.zzimcong.order.api.response.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+@Slf4j(topic = "GLOBAL_EXCEPTION_HANDLER")
+@ControllerAdvice
+public class GlobalExceptionHandler {
+    // BadRequestException (400)
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException ex, HttpServletRequest request) {
+        return createErrorResponse(ex, HttpStatus.BAD_REQUEST, request.getRequestURI());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> httpMessageNotReadableException(HttpServletRequest request) {
+        BadRequestException ex = new BadRequestException(ErrorCode.MISSING_REQUEST_BODY);
+        return createErrorResponse(ex, HttpStatus.BAD_REQUEST, request.getRequestURI());
+    }
+
+    // UnauthorizedException (401)
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorizedException(UnauthorizedException ex, HttpServletRequest request) {
+        return createErrorResponse(ex, HttpStatus.UNAUTHORIZED, request.getRequestURI());
+    }
+
+    // ForbiddenException (403)
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbiddenException(ForbiddenException ex, HttpServletRequest request) {
+        return createErrorResponse(ex, HttpStatus.FORBIDDEN, request.getRequestURI());
+    }
+
+    // NotFoundException (404)
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException ex, HttpServletRequest request) {
+        return createErrorResponse(ex, HttpStatus.NOT_FOUND, request.getRequestURI());
+    }
+
+    // MethodNotAllowedException (405)
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowedException(HttpServletRequest request) {
+        MethodNotAllowedException ex = new MethodNotAllowedException(ErrorCode.METHOD_NOT_ALLOWED);
+        return createErrorResponse(ex, HttpStatus.METHOD_NOT_ALLOWED, request.getRequestURI());
+    }
+
+    // ConflictException (409)
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflictException(ConflictException ex, HttpServletRequest request) {
+        return createErrorResponse(ex, HttpStatus.CONFLICT, request.getRequestURI());
+    }
+
+    // InternalServerErrorException (500)
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleAllException(Exception ex, HttpServletRequest request) {
+        return createErrorResponse(ex, HttpStatus.INTERNAL_SERVER_ERROR, request.getRequestURI());
+    }
+
+    // Create ErrorResponse
+    private ResponseEntity<ErrorResponse> createErrorResponse(Exception ex, HttpStatus status, String path) {
+        logException(ex, status, path);
+        BaseException baseException = ex instanceof BaseException ?
+                (BaseException) ex : new InternalServerErrorException(ErrorCode.INTERNAL_SERVER_ERROR);
+        ErrorResponse errorResponse = ErrorResponse.of(status, baseException, path);
+        return new ResponseEntity<>(errorResponse, status);
+    }
+
+    // Log Exception
+    private void logException(Exception ex, HttpStatus status, String path) {
+        // 스택 트레이스를 분석하여 예외 발생 위치 추출
+        StackTraceElement[] stackTraceElements = ex.getStackTrace();
+        String errorLocation = "Unknown";
+        if (stackTraceElements.length > 0) {
+            StackTraceElement element = stackTraceElements[0];
+            errorLocation = String.format("%s.%s (Line: %d)",
+                    element.getClassName(),
+                    element.getMethodName(),
+                    element.getLineNumber());
+        }
+        log.error(
+                "Exception occurred:: {}, Path: {}",
+                errorLocation,
+                path
+        );
+        log.error("Error Code: {}, HTTP Status: {}, Message: {}",
+                ex instanceof BaseException ? ((BaseException) ex).getErrorCode() : "UNKNOWN",
+                status,
+                ex.getMessage());
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/BadRequestException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class BadRequestException extends BaseException {
+    public BadRequestException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public BadRequestException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/BaseException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class BaseException extends RuntimeException {
+    private final ErrorCode errorCode;
+    private final String message;
+
+    public BaseException(ErrorCode errorCode) {
+        this(errorCode, errorCode.getMessage());
+    }
+
+    public BaseException(ErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+        this.message = message;
+    }
+
+    public ErrorCode getErrorCode() {
+        return errorCode;
+    }
+
+    @Override
+    public String getMessage() {
+        return message;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/common/exception/NotFoundException.java
+--------
+package com.zzimcong.order.common.exception;
+
+public class NotFoundException extends BaseException {
+    public NotFoundException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    public NotFoundException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/api/response/ApiResponse.java
+--------
+package com.zzimcong.order.api.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+public class ApiResponse<T> {
+    private boolean success;
+    private T data;
+    private String message;
+
+    public static <T> ApiResponse<T> success(T data, String message) {
+        return new ApiResponse<>(true, data, message);
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/api/response/ErrorResponse.java
+--------
+package com.zzimcong.order.api.response;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.zzimcong.order.common.exception.BaseException;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.http.HttpStatus;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ErrorResponse {
+    private int status;
+    private String message;
+    private String errorCode;
+    private LocalDateTime timestamp;
+    private String path;
+
+    public static ErrorResponse of(HttpStatus status, BaseException ex, String path) {
+        ErrorResponse response = new ErrorResponse();
+        response.setStatus(status.value());
+        response.setMessage(ex.getMessage());
+        response.setErrorCode(ex.getErrorCode().name());
+        response.setTimestamp(LocalDateTime.now());
+        response.setPath(path);
+        return response;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/api/controller/OrderController.java
+--------
+package com.zzimcong.order.api.controller;
+
+import com.zzimcong.order.application.dto.OrderRequest;
+import com.zzimcong.order.application.dto.OrderResponse;
+import com.zzimcong.order.application.saga.OrderSaga;
+import com.zzimcong.order.application.service.OrderService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@Slf4j(topic = "order-service")
+@RestController
+@RequestMapping("/api/v1/orders")
+public class OrderController {
+    private final OrderService orderService;
+    private final OrderSaga orderSaga;
+
+    @Autowired
+    public OrderController(OrderService orderService, OrderSaga orderSaga) {
+        this.orderService = orderService;
+        this.orderSaga = orderSaga;
+    }
+
+    @PostMapping
+    public ResponseEntity<Void> createOrder(@RequestHeader("X-Auth-User-ID") Long userId, @RequestBody OrderRequest orderRequest) {
+        orderSaga.startOrderSaga(userId, orderRequest);
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getOrder(@RequestHeader("X-Auth-User-ID") Long userId, @PathVariable Long orderId) {
+        OrderResponse orderResponse = orderService.getOrderResponse(orderId);
+        return ResponseEntity.ok(orderResponse);
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<OrderResponse>> getOrderList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size);
+        Page<OrderResponse> responsePages = orderService.getOrderList(pageRequest);
+        return ResponseEntity.ok(responsePages);
+    }
+
+    @GetMapping("/user")
+    public ResponseEntity<Page<OrderResponse>> getUserOrders(
+            @RequestHeader("X-Auth-User-ID") Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size);
+        Page<OrderResponse> orderPage = orderService.getUserOrders(userId, pageRequest);
+        return ResponseEntity.ok(orderPage);
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<Void> cancelOrder(
+            @RequestHeader("X-Auth-User-ID") Long userId,
+            @PathVariable Long orderId) {
+        orderService.cancelOrderByOrderId(orderId);
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/{orderId}/refund")
+    public ResponseEntity<Void> requestRefund(@PathVariable Long orderId) {
+        orderService.requestRefund(orderId);
+        return ResponseEntity.accepted().build();
+    }
+
+//    @GetMapping("/{orderId}/items")
+//    public ResponseEntity<List<OrderItemResponse>> getOrderItems(@PathVariable Long orderId) {
+//        List<OrderItem> items = orderService.getOrderItems(orderId);
+//        List<OrderItemResponse> itemResponses = items.stream()
+//                .map(OrderItemResponse::createOrderItemResponse)
+//                .collect(Collectors.toList());
+//        return ResponseEntity.ok(itemResponses);
+//    }
+
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/api/client/ProductServiceClient.java
+--------
+package com.zzimcong.order.api.client;
+
+import com.zzimcong.order.application.dto.ReleaseInventoryRequest;
+import com.zzimcong.order.application.dto.ReserveInventoryRequest;
+import com.zzimcong.order.application.dto.ReserveInventoryResponse;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
+@FeignClient(name = "product-service")
+public interface ProductServiceClient {
+    @PostMapping("/api/v1/products/{productId}/reserve")
+    ReserveInventoryResponse reserveInventory(@PathVariable("productId") Long productId,
+                                              @RequestBody ReserveInventoryRequest request);
+
+    @PostMapping("/api/v1/products/{productId}/release")
+    void releaseInventory(@PathVariable("productId") Long productId,
+                          @RequestBody ReleaseInventoryRequest request);
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/api/client/UserServiceClient.java
+--------
+package com.zzimcong.order.api.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+
+@FeignClient(name = "user-service")  // URL 제거, 서비스 이름만 사용
+public interface UserServiceClient {
+//    @GetMapping("/users/{userId}")
+//    UserDto getUserById(@PathVariable("userId") Long userId);
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/aspect/OrderAuthorizationAspect.java
+--------
+package com.zzimcong.order.aspect;
+
+import com.zzimcong.order.common.UserInfo;
+import com.zzimcong.order.common.exception.ErrorCode;
+import com.zzimcong.order.common.exception.ForbiddenException;
+import com.zzimcong.order.application.service.OrderService;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class OrderAuthorizationAspect {
+
+    private final OrderService orderService;
+
+    public OrderAuthorizationAspect(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @Before("execution(* com.zzimcong.order.api.controller.OrderController.*(.., com.zzimcong.order.common.UserInfo, Long, ..)) && args(userInfo, orderId, ..)")
+    public void validateUserAuthorization(JoinPoint joinPoint, UserInfo userInfo, Long orderId) {
+        if (!orderService.isOrderOwnedByUser(orderId, userInfo.getId())) {
+            throw new ForbiddenException(ErrorCode.ACCESS_DENIED, "주문 접근 권한이 없습니다.");
+        }
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/aspect/LoggingAspect.java
+--------
+package com.zzimcong.order.aspect;
+
+import com.zzimcong.order.common.UserInfo;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Aspect
+@Component
+public class LoggingAspect {
+
+    @Around("execution(* com.zzimcong.order.api.controller.*.*(.., com.zzimcong.order.common.UserInfo, ..))")
+    public Object logAroundMethods(ProceedingJoinPoint joinPoint) throws Throwable {
+        UserInfo userInfo = null;
+        for (Object arg : joinPoint.getArgs()) {
+            if (arg instanceof UserInfo) {
+                userInfo = (UserInfo) arg;
+                break;
+            }
+        }
+
+        String methodName = joinPoint.getSignature().getName();
+        String className = joinPoint.getTarget().getClass().getSimpleName();
+
+        log.info("사용자 ID: {}, 메서드 실행: {}.{}",
+                userInfo != null ? userInfo.getId() : "Unknown",
+                className, methodName);
+
+        long start = System.currentTimeMillis();
+        Object result = joinPoint.proceed();
+        long executionTime = System.currentTimeMillis() - start;
+
+        log.info("사용자 ID: {}, 메서드 종료: {}.{}, 실행 시간: {}ms",
+                userInfo != null ? userInfo.getId() : "Unknown",
+                className, methodName, executionTime);
+
+        return result;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/OrderStatusUpdateRequest.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.Getter;
+
+@Getter
+public class OrderStatusUpdateRequest {
+    public String status;
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/ReleaseInventoryRequest.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+public class ReleaseInventoryRequest {
+    private int quantity;
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/CartItemDto.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class CartItemDto {
+    public Long productId;
+    public Integer price;
+    public Integer quantity;
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/OrderItemResponse.java
+--------
+package com.zzimcong.order.application.dto;
+
+import com.zzimcong.order.domain.entity.OrderItem;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class OrderItemResponse {
+    public Long id;
+    public Long productId;
+    public BigDecimal price;
+    public Integer quantity;
+
+    private OrderItemResponse(OrderItem orderItem) {
+        this.id = orderItem.getId();
+        this.productId = orderItem.getProductId();
+        this.price = orderItem.getPrice();
+        this.quantity = orderItem.getQuantity();
+    }
+
+    //factory method
+    public static OrderItemResponse createOrderItemResponse(OrderItem orderItem) {
+        return new OrderItemResponse(orderItem);
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/OrderResponse.java
+--------
+package com.zzimcong.order.application.dto;
+
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderItem;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.order.domain.entity.PaymentType;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class OrderResponse {
+    public Long id;
+    public Long userId;
+    public BigDecimal orderAmount;
+    public BigDecimal paymentAmount;
+    public PaymentType payment;
+    public OrderStatus status;
+    public boolean deleted = false;
+    public String reason;
+    public String name;
+    public String addr;
+    public String addrDetail;
+    public String zipcode;
+    public String phone;
+    public String message;
+    public List<OrderItemResponse> items;
+
+    private OrderResponse(Order order) {
+        this.setId(order.getId());
+        this.setUserId(order.getUserId());
+        this.setOrderAmount(order.getOrderAmount());
+        this.setPaymentAmount(order.getPaymentAmount());
+        this.setPayment(order.getPayment());
+        this.setStatus(order.getStatus());
+        this.setDeleted(order.isDeleted());
+        this.setReason(order.getReason());
+        this.setName(order.getName());
+        this.setAddr(order.getAddr());
+        this.setAddrDetail(order.getAddrDetail());
+        this.setZipcode(order.getZipcode());
+        this.setPhone(order.getPhone());
+        this.setMessage(order.getMessage());
+    }
+
+    private OrderResponse(Order order, List<OrderItem> orderItems) {
+        this(order);
+        this.setItems(orderItems.stream()
+                .map(OrderItemResponse::createOrderItemResponse)
+                .collect(Collectors.toList()));
+    }
+
+    //factory method
+    public static OrderResponse createOrderResponse(Order order) {
+        return new OrderResponse(order);
+    }
+
+    public static OrderResponse createOrderResponse(Order order, List<OrderItem> orderItems) {
+        return new OrderResponse(order, orderItems);
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/OrderListResponse.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.List;
+
+@Getter
+@Setter
+public class OrderListResponse {
+    private List<OrderResponse> orders;
+    private int totalPages;
+    private long totalElements;
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/PaymentResult.java
+--------
+package com.zzimcong.order.application.dto;
+
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class PaymentResult implements KafkaMessage {
+    private Long orderId;
+    private boolean success;
+    private String status;
+
+    public PaymentResult(Long orderId, boolean success) {
+        this.orderId = orderId;
+        this.success = success;
+        this.status = success ? "PAID" : "FAILED";
+    }
+
+    public PaymentResult(Long orderId, boolean success, String status) {
+        this.orderId = orderId;
+        this.success = success;
+        this.status = status;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/ReserveInventoryResponse.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+public class ReserveInventoryResponse {
+    private boolean success;
+    private String message;
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/OrderItemRequest.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+public class OrderItemRequest {
+    public Long productId;
+    public BigDecimal price;
+    public Integer quantity;
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/OrderRequest.java
+--------
+package com.zzimcong.order.application.dto;
+
+import com.zzimcong.order.domain.entity.PaymentType;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+@Getter
+@Setter
+public class OrderRequest {
+    private BigDecimal orderAmount;
+    private BigDecimal paymentAmount;
+    private PaymentType payment;
+    private String name;
+    private String addr;
+    private String addrDetail;
+    private String zipcode;
+    private String phone;
+    private String message;
+    private List<OrderItemRequest> items;
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/ReserveInventoryRequest.java
+--------
+package com.zzimcong.order.application.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+public class ReserveInventoryRequest {
+    private int quantity;
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/dto/PaymentRequest.java
+--------
+package com.zzimcong.order.application.dto;
+
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaymentRequest implements KafkaMessage {
+    private Long orderId;
+    private BigDecimal amount;
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/saga/OrderSaga.java
+--------
+package com.zzimcong.order.application.saga;
+
+import com.zzimcong.order.application.dto.OrderRequest;
+import com.zzimcong.order.application.dto.PaymentRequest;
+import com.zzimcong.order.application.dto.PaymentResult;
+import com.zzimcong.order.application.service.OrderService;
+import com.zzimcong.order.application.service.PaymentService;
+import com.zzimcong.order.application.service.ProductService;
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEvent;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class OrderSaga {
+    private final OrderService orderService;
+    private final ProductService productService;
+    private final PaymentService paymentService;
+    private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
+
+    @Autowired
+    public OrderSaga(OrderService orderService, ProductService productService,
+                     PaymentService paymentService,
+                     KafkaTemplate<String, KafkaMessage> kafkaTemplate) {
+        this.orderService = orderService;
+        this.productService = productService;
+        this.paymentService = paymentService;
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    public void startOrderSaga(Long userId, OrderRequest request) {
+        Order order = orderService.createOrder(userId, request);
+        kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.ORDER_CREATED));
+    }
+
+    @Transactional
+    @KafkaListener(topics = "order-events")
+    public void handleOrderEvent(OrderEvent event) {
+        Order order = orderService.getOrder(event.getOrderId());
+        switch (event.getEventType()) {
+            case ORDER_CREATED:
+                reserveInventory(order);
+                break;
+            case INVENTORY_RESERVED:
+                processPayment(order);
+                break;
+            case PAYMENT_PROCESSED:
+                completeOrder(order);
+                break;
+            case SHIPMENT_PREPARING:
+            case SHIPMENT_STARTED:
+            case SHIPMENT_DELIVERED:
+                orderService.updateOrderStatus(order, mapEventTypeToOrderStatus(event.getEventType()));
+                break;
+            case SAGA_FAILED:
+                compensateOrderFailure(order, event.getErrorMessage());
+                break;
+        }
+    }
+
+    private void reserveInventory(Order order) {
+        boolean allReserved = order.getOrderItems().stream()
+                .allMatch(item -> productService.reserveInventory(item.getProductId(), item.getQuantity()));
+
+        if (allReserved) {
+            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.INVENTORY_RESERVED));
+        } else {
+            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.SAGA_FAILED, "재고 예약 실패"));
+        }
+    }
+
+    private void processPayment(Order order) {
+        // Kafka를 통해 결제 서비스에 비동기 요청
+        kafkaTemplate.send("payment-requests", new PaymentRequest(order.getId(), order.getPaymentAmount()));
+    }
+
+    @KafkaListener(topics = "payment-results")
+    public void handlePaymentResult(PaymentResult result) {
+        if (result.isSuccess()) {
+            kafkaTemplate.send("order-events", new OrderEvent(result.getOrderId(), OrderEventType.PAYMENT_PROCESSED));
+        } else {
+            kafkaTemplate.send("order-events", new OrderEvent(result.getOrderId(), OrderEventType.SAGA_FAILED, "결제 실패"));
+        }
+    }
+
+    private void completeOrder(Order order) {
+        orderService.completeOrder(order);
+        kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.ORDER_COMPLETED));
+    }
+
+    private void compensateOrderFailure(Order order, String errorMessage) {
+        // 실패 원인에 따라 보상 트랜잭션 수행
+        if (errorMessage.contains("재고 예약 실패")) {
+            orderService.cancelOrder(order);
+        } else if (errorMessage.contains("결제 처리 실패")) {
+            order.getOrderItems()
+                    .forEach(item -> productService.releaseInventory(item.getProductId(), item.getQuantity()));
+            orderService.cancelOrder(order);
+        } else if (errorMessage.contains("배송 준비 실패")) {
+            paymentService.refundPayment(order);
+            order.getOrderItems()
+                    .forEach(item -> productService.releaseInventory(item.getProductId(), item.getQuantity()));
+            orderService.cancelOrder(order);
+        }
+    }
+
+    private OrderStatus mapEventTypeToOrderStatus(OrderEventType eventType) {
+        return switch (eventType) {
+            case SHIPMENT_PREPARING -> OrderStatus.PREPARING_FOR_SHIPMENT;
+            case SHIPMENT_STARTED -> OrderStatus.SHIPPING;
+            case SHIPMENT_DELIVERED -> OrderStatus.DELIVERED;
+            default -> throw new IllegalArgumentException("Unexpected event type: " + eventType);
+        };
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/service/ShippingService.java
+--------
+package com.zzimcong.order.application.service;
+
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.order.domain.repository.OrderRepository;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEvent;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@EnableScheduling
+public class ShippingService {
+    private final OrderRepository orderRepository;
+    private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
+
+    @Autowired
+    public ShippingService(OrderRepository orderRepository, KafkaTemplate<String, KafkaMessage> kafkaTemplate) {
+        this.orderRepository = orderRepository;
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    @Scheduled(fixedDelay = 60000) // 1분마다 실행
+    @Transactional
+    public void updateOrdersToPreparing() {
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+        List<Order> orders = orderRepository.findByStatusAndCreatedAtBefore(OrderStatus.ORDER_COMPLETED, oneHourAgo);
+
+        for (Order order : orders) {
+            order.setStatus(OrderStatus.PREPARING_FOR_SHIPMENT);
+            orderRepository.save(order);
+            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.SHIPMENT_PREPARING));
+        }
+    }
+
+    @Scheduled(cron = "0 0 23 * * ?") // 매일 오후 11시 실행
+    @Transactional
+    public void updateOrdersToShipping() {
+        List<Order> orders = orderRepository.findByStatus(OrderStatus.PREPARING_FOR_SHIPMENT);
+
+        for (Order order : orders) {
+            order.setStatus(OrderStatus.SHIPPING);
+            orderRepository.save(order);
+            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.SHIPMENT_STARTED));
+        }
+    }
+
+    @Scheduled(cron = "0 0 11 * * ?") // 매일 오전 11시 실행
+    @Transactional
+    public void updateOrdersToDelivered() {
+        List<Order> orders = orderRepository.findByStatus(OrderStatus.SHIPPING);
+
+        for (Order order : orders) {
+            order.setStatus(OrderStatus.DELIVERED);
+            orderRepository.save(order);
+            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.SHIPMENT_DELIVERED));
+        }
+    }
+
+    public void startShipping(Order order) {
+        order.setStatus(OrderStatus.SHIPPING);
+        orderRepository.save(order);
+    }
+
+    public void completeDelivery(Order order) {
+        order.setStatus(OrderStatus.DELIVERED);
+        orderRepository.save(order);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/service/ProductService.java
+--------
+package com.zzimcong.order.application.service;
+
+import com.zzimcong.order.api.client.ProductServiceClient;
+import com.zzimcong.order.application.dto.ReleaseInventoryRequest;
+import com.zzimcong.order.application.dto.ReserveInventoryRequest;
+import com.zzimcong.order.application.dto.ReserveInventoryResponse;
+import feign.FeignException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ProductService {
+    private final ProductServiceClient productServiceClient;
+
+    @Autowired
+    public ProductService(ProductServiceClient productServiceClient) {
+        this.productServiceClient = productServiceClient;
+    }
+
+    public boolean reserveInventory(Long productId, int quantity) {
+        try {
+            ReserveInventoryResponse response = productServiceClient.reserveInventory(
+                    productId, new ReserveInventoryRequest(quantity));
+            return response.isSuccess();
+        } catch (FeignException e) {
+            if (e.status() == HttpStatus.BAD_REQUEST.value()) {
+                // 재고 부족 등의 이유로 예약 실패
+                return false;
+            }
+            throw new RuntimeException("재고 예약 중 오류 발생", e);
+        }
+    }
+
+    public void releaseInventory(Long productId, int quantity) {
+        productServiceClient.releaseInventory(productId, new ReleaseInventoryRequest(quantity));
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/service/OrderService.java
+--------
+package com.zzimcong.order.application.service;
+
+import com.zzimcong.order.application.dto.OrderItemRequest;
+import com.zzimcong.order.application.dto.OrderItemResponse;
+import com.zzimcong.order.application.dto.OrderRequest;
+import com.zzimcong.order.application.dto.OrderResponse;
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderItem;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.order.domain.repository.OrderRepository;
+import com.zzimcong.zzimconginventorycore.common.event.ShippingEvent;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Slf4j(topic = "order-service")
+@Service
+public class OrderService {
+    private final OrderRepository orderRepository;
+    private final PaymentService paymentService;
+
+    @Autowired
+    public OrderService(OrderRepository orderRepository, PaymentService paymentService) {
+        this.orderRepository = orderRepository;
+        this.paymentService = paymentService;
+    }
+
+    @KafkaListener(topics = "shipping-events")
+    @Transactional
+    public void handleShippingEvent(ShippingEvent event) {
+        Order order = orderRepository.findById(event.getOrderId())
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + event.getOrderId()));
+
+        switch (event.getEventType()) {
+            case PREPARING:
+                order.setStatus(OrderStatus.PREPARING_FOR_SHIPMENT);
+                break;
+            case SHIPPING:
+                order.setStatus(OrderStatus.SHIPPING);
+                break;
+            case DELIVERED:
+                order.setStatus(OrderStatus.DELIVERED);
+                break;
+        }
+
+        orderRepository.save(order);
+        log.info("주문 상태 업데이트: {}, 주문 ID: {}", order.getStatus(), order.getId());
+    }
+
+    @Transactional
+    public Order createOrder(Long userId, OrderRequest request) {
+        log.info("Creating new order for customer: {}", request.getName());
+
+        // 주문 생성
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setStatus(OrderStatus.CREATED);
+        order.setName(request.getName());
+        order.setAddr(request.getAddr());
+        order.setAddrDetail(request.getAddrDetail());
+        order.setZipcode(request.getZipcode());
+        order.setPhone(request.getPhone());
+        order.setMessage(request.getMessage());
+        order.setOrderAmount(request.getOrderAmount());
+        order.setPaymentAmount(request.getPaymentAmount());
+        order.setPayment(request.getPayment());
+
+        // 주문 아이템 추가
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (OrderItemRequest itemRequest : request.getItems()) {
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProductId(itemRequest.getProductId());
+            item.setQuantity(itemRequest.getQuantity());
+            item.setPrice(itemRequest.getPrice());
+            orderItems.add(item);
+        }
+        order.setOrderItems(orderItems);
+
+        Order savedOrder = orderRepository.save(order);
+
+        log.info("Order created with ID: {}", savedOrder.getId());
+
+        return savedOrder;
+    }
+
+    @Transactional
+    public void updateOrderStatus(Order order, OrderStatus status) {
+        order.setStatus(status);
+        orderRepository.save(order);
+    }
+
+    public Order getOrder(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
+    }
+
+    public OrderResponse getOrderResponse(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
+        return OrderResponse.createOrderResponse(order, order.getOrderItems());
+    }
+
+    public Page<OrderResponse> getOrderList(Pageable pageable) {
+        Page<Order> orderPage = orderRepository.findAll(pageable);
+        return orderPage.map(
+                (order) -> OrderResponse.createOrderResponse(order, order.getOrderItems()));
+    }
+
+    public Page<OrderResponse> getUserOrders(Long userId, Pageable pageable) {
+        Page<Order> ordersWithItems = orderRepository.findByUserId(userId, pageable);
+        List<OrderResponse> orderResponses = ordersWithItems.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        return new PageImpl<>(orderResponses, pageable, ordersWithItems.getTotalElements());
+    }
+
+    private OrderResponse convertToDTO(Order order) {
+        OrderResponse dto = new OrderResponse();
+        BeanUtils.copyProperties(order, dto);
+        dto.setItems(order.getOrderItems().stream()
+                .map(this::convertToItemDTO)
+                .collect(Collectors.toList()));
+        return dto;
+    }
+
+    private OrderItemResponse convertToItemDTO(OrderItem item) {
+        OrderItemResponse dto = new OrderItemResponse();
+        BeanUtils.copyProperties(item, dto);
+        return dto;
+    }
+
+    public List<OrderItem> getOrderItems(Long orderId) {
+        Order order = getOrder(orderId);
+        return order.getOrderItems();
+    }
+
+    @Transactional
+    public void completeOrder(Order order) {
+        order.setStatus(OrderStatus.ORDER_COMPLETED);
+        orderRepository.save(order);
+    }
+
+    @Transactional
+    public void cancelOrderByOrderId(Long orderId) {
+        Order order = getOrder(orderId);
+        cancelOrder(order);
+        paymentService.refundPayment(order);
+    }
+
+    @Transactional
+    public void cancelOrder(Order order) {
+        order.setStatus(OrderStatus.CANCELED);
+        orderRepository.save(order);
+    }
+
+    @Transactional
+    public void requestRefund(Long orderId) {
+        Order order = getOrder(orderId);
+        order.setStatus(OrderStatus.REFUND_REQUESTED);
+        orderRepository.save(order);
+    }
+
+    @Scheduled(fixedDelay = 86400000) // 매일 실행
+    public void autoConfirmOrders() {
+        List<Order> ordersToConfirm = getOrdersToConfirm();
+        for (Order order : ordersToConfirm) {
+            try {
+                confirmOrder(order);
+            } catch (Exception e) {
+                // 로깅 및 예외 처리
+            }
+        }
+    }
+
+    public List<Order> getOrdersToConfirm() {
+        LocalDateTime confirmationDate = LocalDateTime.now().minusDays(1);
+        return orderRepository.findByStatusAndDeliveredAtBefore(OrderStatus.DELIVERED, confirmationDate);
+    }
+
+    @Transactional
+    public void confirmOrder(Order order) {
+        order.setStatus(OrderStatus.ORDER_CONFIRMED);
+        orderRepository.save(order);
+    }
+
+    @Scheduled(fixedDelay = 86400000) // 매일 실행
+    public void autoRefundOrders() {
+        List<Order> ordersToRefund = getOrdersToRefund();
+        for (Order order : ordersToRefund) {
+            try {
+                refundOrder(order);
+            } catch (Exception e) {
+                // 로깅 및 예외 처리
+            }
+        }
+    }
+
+    public List<Order> getOrdersToRefund() {
+        LocalDateTime confirmationDate = LocalDateTime.now().minusDays(1);
+        return orderRepository.findByStatusAndDeliveredAtBefore(OrderStatus.REFUND_REQUESTED, confirmationDate);
+    }
+
+    @Transactional
+    public void refundOrder(Order order) {
+        order.setStatus(OrderStatus.REFUND_COMPLETED);
+        orderRepository.save(order);
+        paymentService.refundPayment(order);
+    }
+
+    public boolean isOrderOwnedByUser(Long orderId, Long id) {
+        Order order = getOrder(orderId);
+        return order.getUserId().equals(id);
+    }
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/application/service/PaymentService.java
+--------
+package com.zzimcong.order.application.service;
+
+import com.zzimcong.order.application.dto.PaymentRequest;
+import com.zzimcong.order.application.dto.PaymentResult;
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+
+import java.util.Random;
+
+@Slf4j(topic = "payment-service")
+@Service
+public class PaymentService {
+    private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
+    private final Random random = new Random();
+
+    @Autowired
+    public PaymentService(KafkaTemplate<String, KafkaMessage> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    @KafkaListener(topics = "payment-requests")
+    public void processPayment(PaymentRequest request) {
+        // 90% 확률로 결제 성공, 10% 확률로 결제 실패 시뮬레이션
+        boolean isSuccess = random.nextInt(100) < 90;
+
+        PaymentResult result = new PaymentResult(request.getOrderId(), isSuccess);
+
+        if (isSuccess) {
+            log.info("결제 성공: 주문 ID {}", request.getOrderId());
+        } else {
+            log.info("결제 실패: 주문 ID {}", request.getOrderId());
+        }
+
+        // 결제 결과를 Kafka로 전송
+        kafkaTemplate.send("payment-results", result);
+    }
+
+    public void refundPayment(Order order) {
+        // 실제 환불 처리 대신 로그만 남김
+        log.info("환불 처리 완료: 주문 ID {}, 금액 {}", order.getId(), order.getPaymentAmount());
+
+        // 환불 결과를 Kafka로 전송
+        PaymentResult refundResult = new PaymentResult(order.getId(), true, "REFUNDED");
+        kafkaTemplate.send("payment-results", refundResult);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/infrastructure/statemachine/OrderStateMachineFactory.java
+--------
+package com.zzimcong.order.infrastructure.statemachine;
+
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
+import org.springframework.statemachine.StateMachine;
+import org.springframework.statemachine.config.StateMachineFactory;
+import org.springframework.statemachine.support.DefaultStateMachineContext;
+import org.springframework.stereotype.Component;
+
+@Component
+public class OrderStateMachineFactory {
+    private final StateMachineFactory<OrderStatus, OrderEventType> stateMachineFactory;
+
+    public OrderStateMachineFactory(StateMachineFactory<OrderStatus, OrderEventType> stateMachineFactory) {
+        this.stateMachineFactory = stateMachineFactory;
+    }
+
+    public StateMachine<OrderStatus, OrderEventType> create(Order order) {
+        StateMachine<OrderStatus, OrderEventType> sm = stateMachineFactory.getStateMachine(order.getId().toString());
+        sm.stop();
+        sm.getStateMachineAccessor().doWithAllRegions(sma -> {
+            sma.resetStateMachine(new DefaultStateMachineContext<>(order.getStatus(), null, null, null));
+        });
+        sm.start();
+        return sm;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/infrastructure/statemachine/OrderStateMachineConfig.java
+--------
+package com.zzimcong.order.infrastructure.statemachine;
+
+import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.statemachine.config.EnableStateMachineFactory;
+import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
+import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
+import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
+
+import java.util.EnumSet;
+
+@Configuration
+@EnableStateMachineFactory
+public class OrderStateMachineConfig extends StateMachineConfigurerAdapter<OrderStatus, OrderEventType> {
+
+    @Override
+    public void configure(StateMachineStateConfigurer<OrderStatus, OrderEventType> states) throws Exception {
+        states
+                .withStates()
+                .initial(OrderStatus.CREATED)
+                .states(EnumSet.allOf(OrderStatus.class));
+    }
+
+    @Override
+    public void configure(StateMachineTransitionConfigurer<OrderStatus, OrderEventType> transitions) throws Exception {
+        transitions
+                .withExternal()
+                .source(OrderStatus.CREATED).target(OrderStatus.STOCK_RESERVED)
+                .event(OrderEventType.INVENTORY_RESERVED)
+                .and()
+                .withExternal()
+                .source(OrderStatus.STOCK_RESERVED).target(OrderStatus.PAYMENT_PROCESSED)
+                .event(OrderEventType.PAYMENT_PROCESSED)
+                .and()
+                .withExternal()
+                .source(OrderStatus.PAYMENT_PROCESSED).target(OrderStatus.ORDER_COMPLETED)
+                .event(OrderEventType.ORDER_COMPLETED)
+                .and()
+                .withExternal()
+                .source(OrderStatus.ORDER_COMPLETED).target(OrderStatus.PREPARING_FOR_SHIPMENT)
+                .event(OrderEventType.SHIPMENT_PREPARING)
+                .and()
+                .withExternal()
+                .source(OrderStatus.PREPARING_FOR_SHIPMENT).target(OrderStatus.SHIPPING)
+                .event(OrderEventType.SHIPMENT_STARTED)
+                .and()
+                .withExternal()
+                .source(OrderStatus.SHIPPING).target(OrderStatus.DELIVERED)
+                .event(OrderEventType.SHIPMENT_DELIVERED);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/infrastructure/kafka/ShippingProducerListener.java
+--------
+package com.zzimcong.order.infrastructure.kafka;
+
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.support.ProducerListener;
+
+public class ShippingProducerListener implements ProducerListener<String, Object> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ShippingProducerListener.class);
+
+    @Override
+    public void onSuccess(ProducerRecord<String, Object> producerRecord, RecordMetadata recordMetadata) {
+        logger.info("Message sent successfully to topic {} partition {} offset {}",
+                recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset());
+    }
+
+    @Override
+    public void onError(ProducerRecord<String, Object> producerRecord, RecordMetadata recordMetadata, Exception exception) {
+        logger.error("Error sending message to topic {} partition {}",
+                producerRecord.topic(), producerRecord.partition(), exception);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/infrastructure/kafka/KafkaProducer.java
+--------
+package com.zzimcong.order.infrastructure.kafka;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
+
+@Component
+public class KafkaProducer<T> {
+    private static final Logger logger = LoggerFactory.getLogger(KafkaProducer.class);
+
+    private final KafkaTemplate<String, T> kafkaTemplate;
+
+    public KafkaProducer(KafkaTemplate<String, T> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    public void send(String topic, T payload) {
+        logger.info("Sending Kafka message to topic: {} with payload: {}", topic, payload);
+        CompletableFuture<SendResult<String, T>> future = kafkaTemplate.send(topic, payload);
+
+        future.whenComplete((result, ex) -> {
+            if (ex == null) {
+                logger.info("Message sent successfully to topic: {}", topic);
+            } else {
+                logger.error("Failed to send message to topic: {}", topic, ex);
+            }
+        });
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/infrastructure/kafka/PaymentEvent.java
+--------
+package com.zzimcong.order.infrastructure.kafka;
+
+import com.zzimcong.order.domain.entity.PaymentType;
+import lombok.Data;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Data
+@Setter
+public class PaymentEvent {
+    private Long orderId;
+    private BigDecimal amount;
+    private PaymentType payment;
+    private boolean success;
+
+    public PaymentEvent(Long orderId, BigDecimal amount, PaymentType payment) {
+        this.orderId = orderId;
+        this.amount = amount;
+        this.payment = payment;
+        this.success = false;
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/repository/OrderRepository.java
+--------
+package com.zzimcong.order.domain.repository;
+
+import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+public interface OrderRepository extends JpaRepository<Order, Long> {
+    List<Order> findByStatus(OrderStatus orderStatus);
+
+    List<Order> findByStatusAndDeliveredAtBefore(OrderStatus orderStatus, LocalDateTime confirmationDate);
+
+    List<Order> findByStatusAndCreatedAtBefore(OrderStatus orderStatus, LocalDateTime oneHourAgo);
+
+    @EntityGraph(attributePaths = "orderItems")
+    Page<Order> findByUserId(Long userId, Pageable pageable);
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/repository/OrderItemRepository.java
+--------
+package com.zzimcong.order.domain.repository;
+
+import com.zzimcong.order.domain.entity.OrderItem;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+    List<OrderItem> findByOrderId(Long orderId);
+}
+
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/entity/PaymentType.java
+--------
+package com.zzimcong.order.domain.entity;
+
+public enum PaymentType {
+    KB, KAKAO, NAVER, KEB, IBK, NH
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/entity/Order.java
+--------
+package com.zzimcong.order.domain.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@Entity
+@Table(name = "orders") // 예약어 회피를 위해 복수형 사용
+public class Order extends BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_id")
+    private Long id;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal orderAmount;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal paymentAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private PaymentType payment;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    @ColumnDefault("'CREATED'")
+    private OrderStatus status = OrderStatus.CREATED;
+
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    @Column(length = 255)
+    private String reason;
+
+    @Column(nullable = false, length = 64)
+    private String name;
+
+    @Column(nullable = false, length = 255)
+    private String addr;
+
+    @Column(nullable = false, length = 255)
+    private String addrDetail;
+
+    @Column(nullable = false, length = 10)
+    private String zipcode;
+
+    @Column(nullable = false, length = 20)
+    private String phone;
+
+    @Column(length = 255)
+    private String message;
+
+    private LocalDateTime deliveredAt;
+
+    private LocalDateTime refundRequestedAt;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems = new ArrayList<>();
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/entity/OrderItem.java
+--------
+package com.zzimcong.order.domain.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.zzimcong.order.application.dto.OrderItemRequest;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@Entity
+@Table(name = "order_items") // 복수형 사용
+public class OrderItem {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_item_id")
+    private Long id;
+
+    @Column(name = "product_id", nullable = false)
+    private Long productId;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
+
+    @Column(nullable = false)
+    private Integer quantity;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
+
+    private OrderItem(Order order, OrderItemRequest orderItemRequest) {
+        this.productId = orderItemRequest.getProductId();
+        this.price = orderItemRequest.getPrice();
+        this.quantity = orderItemRequest.getQuantity();
+        this.order = order;
+    }
+
+    //factory method
+    public static OrderItem createOrderItem(Order order, OrderItemRequest orderItemRequest) {
+        return new OrderItem(order, orderItemRequest);
+    }
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/entity/OrderStatus.java
+--------
+package com.zzimcong.order.domain.entity;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum OrderStatus {
+    CREATED("주문 생성됨"),
+    STOCK_RESERVED("재고 확보 완료"),
+    PAYMENT_PROCESSED("결제 완료"),
+    SAGA_FAILED("주문 처리 실패"),
+    ORDER_COMPLETED("주문 완료"),
+    PREPARING_FOR_SHIPMENT("배송 준비 중"),
+    SHIPPING("배송 중"),
+    DELIVERED("배송 완료"),
+    ORDER_CONFIRMED("주문 확정"),
+    CANCELED("취소됨"),
+    REFUND_REQUESTED("환불 신청됨"),
+    REFUND_COMPLETED("환불 완료됨");
+
+    private final String description;
+}
+
+--------
+
+
+File: ./src/main/java/com/zzimcong/order/domain/entity/BaseEntity.java
+--------
+package com.zzimcong.order.domain.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@EntityListeners(AuditingEntityListener.class)
+@MappedSuperclass
+public abstract class BaseEntity {
+
+    @CreatedDate
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+}
+
+--------
+
+

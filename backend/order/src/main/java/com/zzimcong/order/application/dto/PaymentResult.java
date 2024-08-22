@@ -2,10 +2,12 @@ package com.zzimcong.order.application.dto;
 
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class PaymentResult implements KafkaMessage {
     private Long orderId;
     private boolean success;

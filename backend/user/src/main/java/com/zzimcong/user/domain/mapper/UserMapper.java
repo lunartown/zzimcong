@@ -1,73 +1,37 @@
 package com.zzimcong.user.domain.mapper;
 
-import com.zzimcong.user.application.dto.SignupRequestDto;
-import com.zzimcong.user.application.dto.UserModifyRequestDto;
-import com.zzimcong.user.application.dto.UserResponseDto;
-import com.zzimcong.user.common.exception.InternalServerErrorException;
+import com.zzimcong.user.application.dto.SignupRequest;
+import com.zzimcong.user.application.dto.UserModifyRequest;
+import com.zzimcong.user.application.dto.UserResponse;
 import com.zzimcong.user.common.util.AESUtil;
 import com.zzimcong.user.domain.entity.User;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 
-@Component
-public class UserMapper {
-    private static final Logger logger = LoggerFactory.getLogger(UserMapper.class);
-    private final AESUtil aesUtil;
-    private final PasswordEncoder passwordEncoder;
+@Mapper(componentModel = "spring")
+public abstract class UserMapper {
 
-    public UserMapper(PasswordEncoder passwordEncoder, AESUtil aesUtil) {
-        this.aesUtil = aesUtil;
-        this.passwordEncoder = passwordEncoder;
-    }
+    @Autowired
+    protected AESUtil aesUtil;
+    @Autowired
+    protected PasswordEncoder passwordEncoder;
 
-    //Dto -> Entity 변환
-    public User toEntity(SignupRequestDto dto) {
-        if (dto == null) {
-            return null;
-        }
-        User user = new User();
-        try {
-            user.setName(aesUtil.encrypt(dto.getName()));
-            user.setEmail(aesUtil.encrypt(dto.getEmail()));
-            user.setPhone(aesUtil.encrypt(dto.getPhone()));
-            user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        } catch (InternalServerErrorException e) {
-            logger.error("Error encrypting user data: {}", e.getMessage());
-            throw e;
-        }
+    @Mapping(target = "name", expression = "java(aesUtil.encrypt(dto.name()))")
+    @Mapping(target = "email", expression = "java(aesUtil.encrypt(dto.email()))")
+    @Mapping(target = "phone", expression = "java(aesUtil.encrypt(dto.phone()))")
+    @Mapping(target = "password", expression = "java(passwordEncoder.encode(dto.password()))")
+    public abstract User toEntity(SignupRequest dto);
 
-        return user;
-    }
+    @Mapping(target = "email", expression = "java(aesUtil.decrypt(user.getEmail()))")
+    @Mapping(target = "username", expression = "java(aesUtil.decrypt(user.getName()))")
+    @Mapping(target = "phone", expression = "java(aesUtil.decrypt(user.getPhone()))")
+    public abstract UserResponse toDto(User user);
 
-    //Entity -> Dto 변환
-    public UserResponseDto toDto(User user) {
-        if (user == null) {
-            return null;
-        }
-        UserResponseDto dto = new UserResponseDto();
-        try {
-            dto.setId(user.getId());
-            dto.setEmail(aesUtil.decrypt(user.getEmail()));
-            dto.setUsername(aesUtil.decrypt(user.getName()));
-            dto.setPhone(aesUtil.decrypt(user.getPhone()));
-        } catch (InternalServerErrorException e) {
-            logger.error("Error decrypting user data: {}", e.getMessage());
-            throw e;
-        }
-
-        return dto;
-    }
-
-    //Dto를 이용해 Entity 업데이트
-    public User updateFromDto(User user, UserModifyRequestDto dto) {
-        if (user == null || dto == null) {
-            return null;
-        }
-        user.setName(aesUtil.encrypt(dto.getName()));
-        user.setPhone(aesUtil.encrypt(dto.getPhone()));
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        return user;
-    }
+    @Mapping(target = "name", expression = "java(aesUtil.encrypt(dto.name()))")
+    @Mapping(target = "phone", expression = "java(aesUtil.encrypt(dto.phone()))")
+    @Mapping(target = "password", expression = "java(passwordEncoder.encode(dto.password()))")
+    public abstract User updateFromDto(UserModifyRequest dto, @MappingTarget User user);
 }

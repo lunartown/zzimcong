@@ -15,7 +15,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "orders") // 예약어 회피를 위해 복수형 사용
+@Table(name = "orders")
 public class Order extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,6 +24,10 @@ public class Order extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "order_address_id")
+    private OrderAddress orderAddress;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal orderAmount;
@@ -45,24 +49,6 @@ public class Order extends BaseEntity {
 
     @Column(length = 255)
     private String reason;
-
-    @Column(nullable = false, length = 64)
-    private String name;
-
-    @Column(nullable = false, length = 255)
-    private String addr;
-
-    @Column(nullable = false, length = 255)
-    private String addrDetail;
-
-    @Column(nullable = false, length = 10)
-    private String zipcode;
-
-    @Column(nullable = false, length = 20)
-    private String phone;
-
-    @Column(length = 255)
-    private String message;
 
     private LocalDateTime deliveredAt;
 

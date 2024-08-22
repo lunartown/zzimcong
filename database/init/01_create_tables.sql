@@ -28,16 +28,18 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- 주소 테이블
 CREATE TABLE IF NOT EXISTS address (
-    addr_id BIGINT NOT NULL AUTO_INCREMENT,
+    address_id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT UNSIGNED NOT NULL,
     name VARCHAR(64) NOT NULL,
-    addr VARCHAR(255) NOT NULL,
-    addrDetail VARCHAR(255) NOT NULL,
+    street_address VARCHAR(255) NOT NULL,
+    address_detail VARCHAR(255) NOT NULL,
     zipcode VARCHAR(10) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     message VARCHAR(255),
-    is_default TINYINT(1) DEFAULT 0,
-    PRIMARY KEY (addr_id),
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (address_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
@@ -82,10 +84,25 @@ CREATE TABLE IF NOT EXISTS cart_items (
     FOREIGN KEY (product_id) REFERENCES products(product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 주문 주소 테이블
+CREATE TABLE IF NOT EXISTS order_addresses (
+    order_address_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(64) NOT NULL,
+    street_address VARCHAR(255) NOT NULL,
+    address_detail VARCHAR(255) NOT NULL,
+    zipcode VARCHAR(10) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    message VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (order_address_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 주문 테이블
 CREATE TABLE IF NOT EXISTS orders (
     order_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id BIGINT UNSIGNED NOT NULL,
+    order_address_id BIGINT UNSIGNED,
     order_amount DECIMAL(10,2) NOT NULL,
     payment_amount DECIMAL(10,2) NOT NULL,
     payment ENUM('KB', 'KAKAO', 'NAVER', 'KEB', 'IBK', 'NH') NOT NULL,
@@ -94,18 +111,12 @@ CREATE TABLE IF NOT EXISTS orders (
                 'REFUND_REQUESTED', 'REFUND_COMPLETED') NOT NULL DEFAULT 'CREATED',
     deleted BOOLEAN DEFAULT FALSE,
     reason VARCHAR(255),
-    name VARCHAR(64) NOT NULL,
-    addr VARCHAR(255) NOT NULL,
-    addr_detail VARCHAR(255) NOT NULL,
-    zipcode VARCHAR(10) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    message VARCHAR(255),
     delivered_at DATETIME,
     refund_requested_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (order_address_id) REFERENCES order_addresses(order_address_id),
     INDEX idx_order_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

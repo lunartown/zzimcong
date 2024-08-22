@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,56 +65,51 @@ public class CategoryService {
             Category parentCategory = categoryRepository.findById(parentId)
                     .orElseThrow(() -> new NotFoundException(ErrorCode.CATEGORY_NOT_FOUND));
             category.setParentCategory(parentCategory);
-        }
-
-        category = categoryRepository.save(category);
-
-        // ID가 생성된 후 path 업데이트
-        if (parentId == null) {
-            category.setPath("/" + category.getId());
-        } else {
-            Category parentCategory = category.getParentCategory();
-            category.setPath(parentCategory.getPath() + "/" + category.getId());
+            category.setPath(parentCategory.getPath() + parentCategory.getId() + "/");
         }
 
         return categoryRepository.save(category);
     }
 
     //카테고리 수정
-    public void updateCategoryHierarchy() {
-        List<Category> allCategories = categoryRepository.findAll();
-        for (Category category : allCategories) {
-            updateCategoryDepthAndPath(category);
-        }
-        categoryRepository.saveAll(allCategories);
-    }
+    public CategoryDto updateCategory(Long id, CategoryDto categoryDto) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CATEGORY_NOT_FOUND));
 
-    //카테고리 수정
-    private void updateCategoryDepthAndPath(Category category) {
-        if (category.getParentCategory() == null) {
-            category.setDepth(0);
-            category.setPath("/" + category.getId());
-        } else {
-            category.setDepth(category.getParentCategory().getDepth() + 1);
-            category.setPath(category.getParentCategory().getPath() + "/" + category.getId());
-        }
+        category.setName(categoryDto.getName());
+        categoryRepository.save(category);
+
+        return CategoryDto.of(category);
     }
 
     //카테고리 삭제
     public void deleteCategory(Long id) {
-        categoryRepository.deleteById(id);
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CATEGORY_NOT_FOUND));
+
+        categoryRepository.delete(category);
     }
 
-    //카테고리 ID로 하위 카테고리 ID 목록 조회
+
+    //서브 카테고리 조회
     public List<Long> findAllSubCategoryIds(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        return categoryRepository.findByPathStartingWith(category.getPath())
-                .stream()
-                .map(Category::getId)
-                .collect(Collectors.toList());
+        List<Long> subCategoryIds = new ArrayList<>();
+        subCategoryIds.add(categoryId);
+
+        if (category.getPath() != null) {
+            List<Category> subCategories = categoryRepository.findByPathStartingWith(category.getPath());
+            subCategoryIds.addAll(subCategories.stream().map(Category::getId).toList());
+        }
+
+        return subCategoryIds;
     }
 
 
+    public Category getCategoryById(Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CATEGORY_NOT_FOUND));
+    }
 }

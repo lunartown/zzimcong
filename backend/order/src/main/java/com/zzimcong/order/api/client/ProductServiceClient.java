@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(name = "product-service")
 public interface ProductServiceClient {
-
     @PostMapping("/api/v1/products/{productId}/reserve")
     ReserveInventoryResponse reserveInventory(@PathVariable("productId") Long productId,
                                               @RequestBody ReserveInventoryRequest request);

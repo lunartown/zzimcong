@@ -1,7 +1,7 @@
 package com.zzimcong.user.api.controller;
 
-import com.zzimcong.user.application.dto.EmailCheckDto;
-import com.zzimcong.user.application.dto.EmailRequestDto;
+import com.zzimcong.user.application.dto.EmailCheckResponse;
+import com.zzimcong.user.application.dto.EmailRequest;
 import com.zzimcong.user.application.service.EmailVerificationService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -24,16 +24,16 @@ public class EmailVerificationsController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<String> sendVerificationEmail(@RequestBody @Valid EmailRequestDto emailDto) {
-        log.info("인증 이메일 전송 요청: {}", emailDto.getEmail());
-        emailVerificationService.sendVerificationEmail(emailDto.getEmail());
+    public ResponseEntity<String> sendVerificationEmail(@RequestBody @Valid EmailRequest emailDto) {
+        log.info("인증 이메일 전송 요청: {}", emailDto.email());
+        emailVerificationService.sendVerificationEmail(emailDto.email());
         return ResponseEntity.ok("인증 이메일이 성공적으로 전송되었습니다.");
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<String> verifyEmail(@RequestBody @Valid EmailCheckDto emailCheckDto) {
-        log.info("이메일 인증 요청: {}", emailCheckDto.getEmail());
-        String token = emailVerificationService.verifyEmailAndGenerateToken(emailCheckDto.getEmail(), emailCheckDto.getAuthNum());
+    public ResponseEntity<String> verifyEmail(@RequestBody @Valid EmailCheckResponse emailCheckResponse) {
+        log.info("이메일 인증 요청: {}", emailCheckResponse.email());
+        String token = emailVerificationService.verifyEmailAndGenerateToken(emailCheckResponse.email(), emailCheckResponse.authNum());
         return ResponseEntity.ok(token);
     }
 }

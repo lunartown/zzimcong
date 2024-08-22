@@ -11,6 +11,7 @@ public enum ErrorCode {
     INVALID_VERIFICATION_CODE("잘못된 인증 코드입니다."),
     EMAIL_VERIFICATION_FAILED("이메일 인증에 실패했습니다."),
     MISSING_REQUEST_BODY("요청 바디가 없습니다."),
+    ADDRESS_NOT_FOUND("주소를 찾을 수 없습니다."),
 
     // UnauthorizedException (401)
     INVALID_CREDENTIALS("잘못된 인증 정보입니다."),

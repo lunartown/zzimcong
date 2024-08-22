@@ -1,8 +1,8 @@
 package com.zzimcong.user.application.service;
 
-import com.zzimcong.user.application.dto.AuthResultDto;
-import com.zzimcong.user.application.dto.LoginRequestDto;
-import com.zzimcong.user.application.dto.SignupRequestDto;
+import com.zzimcong.user.application.dto.AuthResponse;
+import com.zzimcong.user.application.dto.LoginRequest;
+import com.zzimcong.user.application.dto.SignupRequest;
 import com.zzimcong.user.common.exception.ErrorCode;
 import com.zzimcong.user.common.exception.UnauthorizedException;
 import com.zzimcong.user.common.util.SecurityUtil;
@@ -37,12 +37,12 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
-    public void signUp(SignupRequestDto signupRequestDto, String token) {
-        emailVerificationService.validateTokenForRegistration(signupRequestDto.getEmail(), token);
-        userService.createUser(signupRequestDto);
+    public void signUp(SignupRequest signupRequest, String token) {
+        emailVerificationService.validateTokenForRegistration(signupRequest.email(), token);
+        userService.createUser(signupRequest);
     }
 
-    public AuthResultDto login(LoginRequestDto requestDto) {
+    public AuthResponse login(LoginRequest requestDto) {
         try {
             Authentication authentication = authenticateUser(requestDto);
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -63,7 +63,7 @@ public class AuthService {
         log.info("User {} logged out successfully", id);
     }
 
-    public AuthResultDto refreshToken(String refreshToken) {
+    public AuthResponse refreshToken(String refreshToken) {
         if (refreshToken == null) {
             throw new UnauthorizedException(ErrorCode.TOKEN_NOT_FOUND);
         }
@@ -78,16 +78,16 @@ public class AuthService {
         }
     }
 
-    private Authentication authenticateUser(LoginRequestDto requestDto) {
+    private Authentication authenticateUser(LoginRequest requestDto) {
         return authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(requestDto.getEmail(), requestDto.getPassword())
+                new UsernamePasswordAuthenticationToken(requestDto.email(), requestDto.password())
         );
     }
 
-    private AuthResultDto generateAuthResultDto(Long id) {
+    private AuthResponse generateAuthResultDto(Long id) {
         String accessToken = jwtUtil.generateAccessToken(id);
         String refreshToken = jwtUtil.generateRefreshToken(id);
         tokenService.storeRefreshToken(String.valueOf(id), refreshToken);
-        return new AuthResultDto(accessToken, refreshToken);
+        return new AuthResponse(accessToken, refreshToken);
     }
 }

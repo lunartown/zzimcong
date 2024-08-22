@@ -1,12 +1,7 @@
 package com.zzimcong.order.application.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
-@AllArgsConstructor
-public class ReserveInventoryRequest {
-    private int quantity;
+public record ReserveInventoryRequest(
+//        Long productId,
+        int quantity
+) {
 }

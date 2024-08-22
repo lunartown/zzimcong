@@ -1,119 +1,113 @@
 package com.zzimcong.order.application.saga;
 
-import com.zzimcong.order.application.dto.OrderRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zzimcong.order.application.dto.PaymentRequest;
 import com.zzimcong.order.application.dto.PaymentResult;
-import com.zzimcong.order.application.service.OrderService;
-import com.zzimcong.order.application.service.PaymentService;
 import com.zzimcong.order.application.service.ProductService;
 import com.zzimcong.order.domain.entity.Order;
-import com.zzimcong.order.domain.entity.OrderStatus;
-import com.zzimcong.zzimconginventorycore.common.event.OrderEvent;
-import com.zzimcong.zzimconginventorycore.common.event.OrderEventType;
-import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.zzimcong.order.domain.repository.OrderRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-@Service
-public class OrderSaga {
-    private final OrderService orderService;
-    private final ProductService productService;
-    private final PaymentService paymentService;
-    private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
+import java.time.Duration;
 
-    @Autowired
-    public OrderSaga(OrderService orderService, ProductService productService,
-                     PaymentService paymentService,
-                     KafkaTemplate<String, KafkaMessage> kafkaTemplate) {
-        this.orderService = orderService;
+@Service
+@Slf4j
+public class OrderSaga {
+    private final RedisTemplate<String, String> redisTemplate;
+    private final OrderRepository orderRepository;
+    private final ProductService productService;
+    private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, PaymentRequest> kafkaTemplate;
+
+    public OrderSaga(RedisTemplate<String, String> redisTemplate, OrderRepository orderRepository,
+                     ProductService productService, ObjectMapper objectMapper, KafkaTemplate<String, PaymentRequest> kafkaTemplate) {
+        this.redisTemplate = redisTemplate;
+        this.orderRepository = orderRepository;
         this.productService = productService;
-        this.paymentService = paymentService;
+        this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void startOrderSaga(OrderRequest request) {
-        Order order = orderService.createOrder(request);
-        kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.ORDER_CREATED));
-    }
-
-    @KafkaListener(topics = "order-events")
-    public void handleOrderEvent(OrderEvent event) {
-        Order order = orderService.getOrder(event.getOrderId());
-        switch (event.getEventType()) {
-            case ORDER_CREATED:
-                reserveInventory(order);
-                break;
-            case INVENTORY_RESERVED:
-                processPayment(order);
-                break;
-            case PAYMENT_PROCESSED:
-                completeOrder(order);
-                break;
-            case SHIPMENT_PREPARING:
-            case SHIPMENT_STARTED:
-            case SHIPMENT_DELIVERED:
-                orderService.updateOrderStatus(order, mapEventTypeToOrderStatus(event.getEventType()));
-                break;
-            case SAGA_FAILED:
-                compensateOrderFailure(order, event.getErrorMessage());
-                break;
-        }
-    }
-
-    private void reserveInventory(Order order) {
-        boolean allReserved = order.getOrderItems().stream()
-                .allMatch(item -> productService.reserveInventory(item.getProductId(), item.getQuantity()));
-
+    // 주문 준비 및 재고 예약
+    public OrderPreparationResponse prepareOrderAndReserveInventory(Long userId, OrderPreparationRequest request) {
+        boolean allReserved = reserveInventory(request.getOrderItems());
         if (allReserved) {
-            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.INVENTORY_RESERVED));
+            Order tempOrder = createTempOrder(userId, request);
+            String orderId = saveTempOrderToRedis(userId, tempOrder);
+            return new OrderPreparationResponse(orderId, OrderPreparationStatus.SUCCESS);
         } else {
-            kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.SAGA_FAILED, "재고 예약 실패"));
+            return new OrderPreparationResponse(null, OrderPreparationStatus.INVENTORY_SHORTAGE);
         }
     }
 
-    private void processPayment(Order order) {
-        // Kafka를 통해 결제 서비스에 비동기 요청
-        kafkaTemplate.send("payment-requests", new PaymentRequest(order.getId(), order.getPaymentAmount()));
+    private String saveTempOrderToRedis(Long userId, Order tempOrder) {
+        String orderId = generateOrderId();
+        String key = "temp_order:" + userId + ":" + orderId;
+        String orderJson = objectMapper.writeValueAsString(tempOrder);
+        redisTemplate.opsForValue().set(key, orderJson, Duration.ofMinutes(30));
+        return orderId;
     }
 
+    // 결제 요청
+    public void requestPayment(Long userId, String orderId, OrderConfirmationRequest request) {
+        String key = "temp_order:" + userId + ":" + orderId;
+        String orderJson = redisTemplate.opsForValue().get(key);
+        if (orderJson == null) {
+            throw new OrderNotFoundException("임시 주문을 찾을 수 없습니다.");
+        }
+
+        Order order = objectMapper.readValue(orderJson, Order.class);
+        order.updateOrderDetails(request);
+
+        // 결제 요청
+        PaymentRequest paymentRequest = new PaymentRequest(order.getId(), order.getTotalAmount());
+        kafkaTemplate.send("payment-requests", paymentRequest);
+
+        // 결제 요청 후 Redis의 만료 시간을 연장 (결제 완료 대기)
+        redisTemplate.expire(key, Duration.ofMinutes(15));
+    }
+
+    // 결제 결과 처리
     @KafkaListener(topics = "payment-results")
     public void handlePaymentResult(PaymentResult result) {
+        String key = "temp_order:" + result.getUserId() + ":" + result.getOrderId();
+        String orderJson = redisTemplate.opsForValue().get(key);
+
+        if (orderJson == null) {
+            log.warn("Payment result received for non-existent order: {}", result.getOrderId());
+            return;
+        }
+
+        Order order = objectMapper.readValue(orderJson, Order.class);
+
         if (result.isSuccess()) {
-            kafkaTemplate.send("order-events", new OrderEvent(result.getOrderId(), OrderEventType.PAYMENT_PROCESSED));
+            order.setStatus(OrderStatus.PAYMENT_COMPLETED);
+            orderRepository.save(order);  // DB에 저장
+            redisTemplate.delete(key);  // Redis에서 임시 주문 정보 삭제
+            initiateShipment(order);
         } else {
-            kafkaTemplate.send("order-events", new OrderEvent(result.getOrderId(), OrderEventType.SAGA_FAILED, "결제 실패"));
+            compensateOrderFailure(order, "결제 실패");
         }
     }
 
-    private void completeOrder(Order order) {
-        orderService.completeOrder(order);
-        kafkaTemplate.send("order-events", new OrderEvent(order.getId(), OrderEventType.ORDER_COMPLETED));
+    private void compensateOrderFailure(Order order, String reason) {
+        // 재고 원복
+        order.getOrderItems().forEach(item ->
+                productService.releaseInventory(item.getProductId(), item.getQuantity()));
+
+        // Redis에서 임시 주문 정보 삭제
+        String key = "temp_order:" + order.getUserId() + ":" + order.getId();
+        redisTemplate.delete(key);
+
+        log.info("Order {} failed: {}", order.getId(), reason);
     }
 
-    private void compensateOrderFailure(Order order, String errorMessage) {
-        // 실패 원인에 따라 보상 트랜잭션 수행
-        if (errorMessage.contains("재고 예약 실패")) {
-            orderService.cancelOrder(order);
-        } else if (errorMessage.contains("결제 처리 실패")) {
-            order.getOrderItems()
-                    .forEach(item -> productService.releaseInventory(item.getProductId(), item.getQuantity()));
-            orderService.cancelOrder(order);
-        } else if (errorMessage.contains("배송 준비 실패")) {
-            paymentService.refundPayment(order);
-            order.getOrderItems()
-                    .forEach(item -> productService.releaseInventory(item.getProductId(), item.getQuantity()));
-            orderService.cancelOrder(order);
-        }
-    }
-
-    private OrderStatus mapEventTypeToOrderStatus(OrderEventType eventType) {
-        return switch (eventType) {
-            case SHIPMENT_PREPARING -> OrderStatus.PREPARING_FOR_SHIPMENT;
-            case SHIPMENT_STARTED -> OrderStatus.SHIPPING;
-            case SHIPMENT_DELIVERED -> OrderStatus.DELIVERED;
-            default -> throw new IllegalArgumentException("Unexpected event type: " + eventType);
-        };
+    private void initiateShipment(Order order) {
+        // 배송 시작 로직
+        kafkaTemplate.send("shipment-requests", new ShipmentRequest(order.getId(), order.getShippingAddress()));
     }
 }

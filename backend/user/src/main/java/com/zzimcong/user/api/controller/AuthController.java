@@ -32,23 +32,23 @@ public class AuthController {
 
     // 이메일 중복 확인
     @PostMapping("/check-email")
-    public ResponseEntity<?> checkEmailAvailability(@RequestBody EmailRequestDto emailRequestDto) {
-        boolean isAvailable = emailVerificationService.isEmailAvailable(emailRequestDto.getEmail());
+    public ResponseEntity<?> checkEmailAvailability(@RequestBody EmailRequest emailRequest) {
+        boolean isAvailable = emailVerificationService.isEmailAvailable(emailRequest.email());
         String message = isAvailable ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다.";
         return ResponseEntity.ok(ApiResponse.success(isAvailable, message));
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signUp(@RequestBody @Valid SignupRequestDto signupRequestDto,
+    public ResponseEntity<?> signUp(@RequestBody @Valid SignupRequest signupRequest,
                                     @RequestParam String token) {
-        authService.signUp(signupRequestDto, token);
+        authService.signUp(signupRequest, token);
         return ResponseEntity.ok(ApiResponse.success(null, "회원가입이 완료되었습니다."));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto, HttpServletRequest request) {
-        AuthResultDto authResultDto = authService.login(loginRequestDto);
-        return ResponseEntity.ok(ApiResponse.success(authResultDto, "로그인에 성공했습니다."));
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+        AuthResponse authResponse = authService.login(loginRequest);
+        return ResponseEntity.ok(ApiResponse.success(authResponse, "로그인에 성공했습니다."));
     }
 
     @PostMapping("/logout")
@@ -59,10 +59,10 @@ public class AuthController {
 
     // refreshToken을 이용한 accessToken 재발급
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody RefreshRequestDto refreshRequestDto) {
-        String refreshToken = refreshRequestDto.getRefreshToken();
-        AuthResultDto authResultDto = authService.refreshToken(refreshToken);
-        return ResponseEntity.ok(ApiResponse.success(authResultDto, "토큰이 갱신되었습니다."));
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshRequest refreshRequest) {
+        String refreshToken = refreshRequest.refreshToken();
+        AuthResponse authResponse = authService.refreshToken(refreshToken);
+        return ResponseEntity.ok(ApiResponse.success(authResponse, "토큰이 갱신되었습니다."));
     }
 
     private String extractRefreshTokenFromCookie(HttpServletRequest request) {

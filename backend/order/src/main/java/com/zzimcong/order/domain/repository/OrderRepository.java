@@ -4,6 +4,7 @@ import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -16,5 +17,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStatusAndCreatedAtBefore(OrderStatus orderStatus, LocalDateTime oneHourAgo);
 
+    @EntityGraph(attributePaths = "orderItems")
     Page<Order> findByUserId(Long userId, Pageable pageable);
 }

@@ -7,6 +7,7 @@ public enum ErrorCode {
     // BadRequestException (400)
     INVALID_INPUT("잘못된 입력입니다."),
     INVALID_ORDER_STATUS("유효하지 않은 주문 상태입니다."),
+    MISSING_REQUEST_BODY("요청 바디가 없습니다."),
 
     // UnauthorizedException (401)
 
@@ -26,7 +27,8 @@ public enum ErrorCode {
 
     // InternalServerErrorException (500)
     RESOURCE_LOAD_FAILED("내부 리소스 로딩에 실패했습니다."),
-    INTERNAL_SERVER_ERROR("서버 내부 오류가 발생했습니다.");
+    INTERNAL_SERVER_ERROR("서버 내부 오류가 발생했습니다."),
+    UNKNOWN_ERROR("알 수 없는 오류가 발생했습니다.");
 
     private final String message;
 

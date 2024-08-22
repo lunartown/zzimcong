@@ -17,7 +17,6 @@ public class Category {
     @Column(name = "category_id")
     private Long id;
 
-    @Column(nullable = false, length = 64)
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -27,19 +26,6 @@ public class Category {
     @OneToMany(mappedBy = "parentCategory")
     private List<Category> childCategories = new ArrayList<>();
 
-    @Column(nullable = false)
     private int depth;
-
     private String path;
-
-    public void setParentCategory(Category parentCategory) {
-        this.parentCategory = parentCategory;
-        if (parentCategory != null) {
-            this.depth = parentCategory.getDepth() + 1;
-            this.path = parentCategory.getPath() + "/" + this.id;
-        } else {
-            this.depth = 0;
-            this.path = "/" + this.id;
-        }
-    }
 }

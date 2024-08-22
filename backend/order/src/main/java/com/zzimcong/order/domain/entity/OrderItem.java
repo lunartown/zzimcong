@@ -1,6 +1,6 @@
 package com.zzimcong.order.domain.entity;
 
-import com.zzimcong.order.application.dto.OrderItemRequest;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,19 +28,8 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
-
-    private OrderItem(Order order, OrderItemRequest orderItemRequest) {
-        this.productId = orderItemRequest.getProductId();
-        this.price = orderItemRequest.getPrice();
-        this.quantity = orderItemRequest.getQuantity();
-        this.order = order;
-    }
-
-    //factory method
-    public static OrderItem createOrderItem(Order order, OrderItemRequest orderItemRequest) {
-        return new OrderItem(order, orderItemRequest);
-    }
 }

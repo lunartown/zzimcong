@@ -1,5 +1,6 @@
 package com.zzimcong.product.domain.entity;
 
+import com.zzimcong.product.application.dto.ProductRequestDto;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -53,4 +54,18 @@ public class Product {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
+
+    protected Product() {
+    }
+
+    public Product(ProductRequestDto productRequestDto, Category category) {
+        this.name = productRequestDto.getName();
+        this.price = productRequestDto.getPrice();
+        this.sale = productRequestDto.getSale();
+        this.content = productRequestDto.getContent();
+        this.image = productRequestDto.getImage();
+        this.availableQuantity = productRequestDto.getAvailableQuantity();
+        this.reservedQuantity = productRequestDto.getReservedQuantity();
+        this.category = category;
+    }
 }

@@ -1,11 +1,11 @@
 package com.zzimcong.user.application.service;
 
+import com.zzimcong.user.common.exception.ConflictException;
+import com.zzimcong.user.common.exception.ErrorCode;
+import com.zzimcong.user.common.exception.UnauthorizedException;
 import com.zzimcong.user.common.util.EmailVerificationToken;
 import com.zzimcong.user.common.util.RedisUtil;
 import com.zzimcong.user.infrastructure.config.EmailProperties;
-import com.zzimcong.user.common.exception.ConflictException;
-import com.zzimcong.user.common.exception.UnauthorizedException;
-import com.zzimcong.user.common.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -45,7 +45,7 @@ public class EmailVerificationService {
     }
 
     public boolean isEmailAvailable(String email) {
-        return userService.checkEmailAvailability(email);
+        return userService.isEmailAvailable(email);
     }
 
     private void storeVerificationCode(String code, String email) {

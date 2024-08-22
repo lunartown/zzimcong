@@ -9,12 +9,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class CartItemDto {
-    private ProductDto productDto;
+    private ProductResponseDto productResponseDto;
     private int count;
 
     //생성자
     public CartItemDto(CartItem cartItem) {
-        this.productDto = ProductDto.of(cartItem.getProduct());
+        this.productResponseDto = ProductResponseDto.of(cartItem.getProduct());
         this.count = cartItem.getCount();
     }
 

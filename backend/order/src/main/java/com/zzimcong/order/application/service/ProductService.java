@@ -20,9 +20,9 @@ public class ProductService {
 
     public boolean reserveInventory(Long productId, int quantity) {
         try {
-            ReserveInventoryResponse response = productServiceClient.reserveInventory(productId,
-                    new ReserveInventoryRequest(quantity));
-            return response.isSuccess();
+            ReserveInventoryResponse response = productServiceClient.reserveInventory(
+                    productId, new ReserveInventoryRequest(quantity));
+            return response.success();
         } catch (FeignException e) {
             if (e.status() == HttpStatus.BAD_REQUEST.value()) {
                 // 재고 부족 등의 이유로 예약 실패
