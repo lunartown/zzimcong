@@ -26,6 +26,7 @@ public class OrderController {
         this.orderSaga = orderSaga;
     }
 
+    // 주문창 이동
     @PostMapping("/prepare")
     public ResponseEntity<OrderPreparationResponse> prepareOrder(@RequestHeader("X-Auth-User-ID") Long userId,
                                                                  @RequestBody OrderPreparationRequest request) {

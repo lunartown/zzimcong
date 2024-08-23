@@ -2,6 +2,7 @@ package com.zzimcong.order.application.service;
 
 import com.zzimcong.order.application.dto.PaymentRequest;
 import com.zzimcong.order.application.dto.PaymentResponse;
+import com.zzimcong.order.application.dto.RefundResponse;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +46,7 @@ public class PaymentService {
         log.info("환불 처리 완료: 주문 ID {}, 금액 {}", order.getId(), order.getPaymentAmount());
 
         // 환불 결과를 Kafka로 전송
-        PaymentResponse refundResult = new PaymentResponse(order.getUserId(), order.getId(), true, "REFUNDED");
-        kafkaTemplate.send("payment-results", refundResult);
+        RefundResponse refundResult = new RefundResponse(order.getUserId(), order.getId(), true, order.getStatus());
+        kafkaTemplate.send("refund-results", refundResult);
     }
 }

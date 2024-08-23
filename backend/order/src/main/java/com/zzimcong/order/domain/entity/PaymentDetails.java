@@ -13,15 +13,18 @@ import lombok.Setter;
 public class PaymentDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "payment_id")
+    @Column(name = "payment_details_id")
     private Long id;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private PaymentType paymentMethod;
-    
-    String cardNumber;
-    String cardHolderName;
-    String expirationDate;
-    String cvv;
+
+    private String cardNumber;
+    private String cardHolderName;
+    private String expirationDate;
+    private String cvv;
+
+    @OneToOne(mappedBy = "paymentDetails")
+    private Order order;
 }

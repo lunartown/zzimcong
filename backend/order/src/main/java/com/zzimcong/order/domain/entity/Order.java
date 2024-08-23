@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @Getter
 @Setter
+@ToString
 @NoArgsConstructor
 @Entity
 @Table(name = "orders")
@@ -27,7 +29,7 @@ public class Order extends BaseEntity {
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_address_id")
-    private OrderAddressRequest orderAddressRequest;
+    private OrderAddress orderAddress;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal orderAmount;
@@ -35,7 +37,7 @@ public class Order extends BaseEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal paymentAmount;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "payment_details_id")
     private PaymentDetails paymentDetails;
 

@@ -29,6 +29,9 @@ public enum ErrorCode {
 
     // InternalServerErrorException (500)
     ORDER_UPDATE_FAILED("주문 정보 업데이트 중 오류가 발생했습니다."),
+    PAYMENT_RESULT_PROCESSING_FAILED("결제 결과 처리 중 오류가 발생했습니다."),
+    PAYMENT_REQUEST_FAILED("결제 요청 전송 중 오류가 발생했습니다."),
+    RESERVE_INVENTORY_FAILED("재고 예약 중 오류가 발생했습니다."),
     RESOURCE_LOAD_FAILED("내부 리소스 로딩에 실패했습니다."),
     INTERNAL_SERVER_ERROR("서버 내부 오류가 발생했습니다."),
     UNKNOWN_ERROR("알 수 없는 오류가 발생했습니다.");

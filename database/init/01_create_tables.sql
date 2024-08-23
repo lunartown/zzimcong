@@ -100,14 +100,14 @@ CREATE TABLE IF NOT EXISTS order_addresses (
 
 -- 결제 정보 테이블
 CREATE TABLE IF NOT EXISTS payment_details (
-    payment_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    cardNumber VARCHAR(16) NOT NULL,
-    cardHolderName VARCHAR(64) NOT NULL,
-    expirationDate VARCHAR(5) NOT NULL,
+    payment_details_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    payment_method ENUM('KB', 'KAKAO', 'NAVER', 'KEB', 'IBK', 'NH') NOT NULL,
+    card_number VARCHAR(16) NOT NULL,
+    card_holder_name VARCHAR(64) NOT NULL,
+    expiration_date VARCHAR(5) NOT NULL,
     cvv VARCHAR(3) NOT NULL,
-    PRIMARY KEY (payment_id),
+    PRIMARY KEY (payment_details_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-)
 
 -- 주문 테이블
 CREATE TABLE IF NOT EXISTS orders (
@@ -116,8 +116,7 @@ CREATE TABLE IF NOT EXISTS orders (
     order_address_id BIGINT UNSIGNED,
     order_amount DECIMAL(10,2) NOT NULL,
     payment_amount DECIMAL(10,2) NOT NULL,
-    payment_id BIGINT UNSIGNED,
-    payment_method ENUM('KB', 'KAKAO', 'NAVER', 'KEB', 'IBK', 'NH') NOT NULL,
+    payment_details_id BIGINT UNSIGNED,
     status ENUM('CREATED', 'STOCK_RESERVED', 'PAYMENT_PROCESSED', 'SAGA_FAILED', 'ORDER_COMPLETED', 
                 'PREPARING_FOR_SHIPMENT', 'SHIPPING', 'DELIVERED', 'ORDER_CONFIRMED', 'CANCELED', 
                 'REFUND_REQUESTED', 'REFUND_COMPLETED') NOT NULL DEFAULT 'CREATED',
@@ -131,7 +130,7 @@ CREATE TABLE IF NOT EXISTS orders (
     PRIMARY KEY (order_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (order_address_id) REFERENCES order_addresses(order_address_id),
-    FOREIGN KEY (payment_id) REFERENCES payment_details(payment_id),
+    FOREIGN KEY (payment_details_id) REFERENCES payment_details(payment_details_id),
     INDEX idx_order_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

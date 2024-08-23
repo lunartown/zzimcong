@@ -18,7 +18,7 @@ public class OrderStateMachineConfig extends StateMachineConfigurerAdapter<Order
     public void configure(StateMachineStateConfigurer<OrderStatus, OrderEventType> states) throws Exception {
         states
                 .withStates()
-                .initial(OrderStatus.CREATED)
+                .initial(OrderStatus.TEMP)
                 .states(EnumSet.allOf(OrderStatus.class));
     }
 
@@ -26,7 +26,7 @@ public class OrderStateMachineConfig extends StateMachineConfigurerAdapter<Order
     public void configure(StateMachineTransitionConfigurer<OrderStatus, OrderEventType> transitions) throws Exception {
         transitions
                 .withExternal()
-                .source(OrderStatus.CREATED).target(OrderStatus.STOCK_RESERVED)
+                .source(OrderStatus.TEMP).target(OrderStatus.STOCK_RESERVED)
                 .event(OrderEventType.INVENTORY_RESERVED)
                 .and()
                 .withExternal()

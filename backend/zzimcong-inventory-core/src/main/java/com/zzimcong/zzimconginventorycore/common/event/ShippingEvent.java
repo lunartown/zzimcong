@@ -1,6 +1,8 @@
 package com.zzimcong.zzimconginventorycore.common.event;
 
-public class ShippingEvent {
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+
+public class ShippingEvent implements KafkaMessage {
     private Long orderId;
     private ShippingEventType eventType;
 

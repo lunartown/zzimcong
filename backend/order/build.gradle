@@ -60,6 +60,10 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
+    //email
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'com.sun.mail:jakarta.mail:2.0.1'
+
     // mapstruct
     implementation 'org.mapstruct:mapstruct:1.5.3.Final'
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.3.Final'

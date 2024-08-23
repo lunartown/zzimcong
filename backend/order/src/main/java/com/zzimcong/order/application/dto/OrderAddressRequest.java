@@ -1,6 +1,6 @@
 package com.zzimcong.order.application.dto;
 
-public record OrderAddressResponse(
+public record OrderAddressRequest(
         String name,
         String streetAddress,
         String addressDetail,

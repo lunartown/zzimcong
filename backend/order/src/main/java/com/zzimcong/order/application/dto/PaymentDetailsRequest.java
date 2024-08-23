@@ -1,7 +1,9 @@
 package com.zzimcong.order.application.dto;
 
+import com.zzimcong.order.domain.entity.PaymentType;
+
 public record PaymentDetailsRequest(
-        String paymentMethod,
+        PaymentType paymentMethod,
         String cardNumber,
         String cardHolderName,
         String expirationDate,
