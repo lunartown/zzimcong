@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zzimcong.order.application.dto.*;
 import com.zzimcong.order.application.mapper.OrderRequestMapper;
-import com.zzimcong.order.application.service.OrderService;
 import com.zzimcong.order.application.service.ProductService;
 import com.zzimcong.order.common.exception.ErrorCode;
 import com.zzimcong.order.common.exception.InternalServerErrorException;
@@ -27,7 +26,6 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -40,7 +38,6 @@ import java.util.concurrent.ExecutionException;
 @Slf4j(topic = "order-saga")
 @RequiredArgsConstructor
 public class OrderSaga {
-    private final OrderService orderService;
     private final ProductService productService;
     private final OrderRequestMapper orderRequestMapper;
     private final ObjectMapper objectMapper;
@@ -130,7 +127,6 @@ public class OrderSaga {
     }
 
     // 주문 정보 업데이트
-    @Transactional
     public Order updateOrderDetails(Long userId, String uuid, OrderCreationRequest orderCreationRequest) {
         String key = "temp_order:" + userId + ":" + uuid;
 
@@ -175,7 +171,7 @@ public class OrderSaga {
     }
 
     // 결제 요청
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void processPayment(Long userId, String uuid, PaymentDetailsRequest request, Order order) {
         log.info("결제 처리 시작. 사용자 ID: {}, UUID: {}", userId, uuid);
         PaymentRequest paymentRequest = new PaymentRequest(userId, uuid, request, order.getPaymentAmount());
@@ -189,7 +185,6 @@ public class OrderSaga {
     }
 
     // 결제 결과 처리
-    @Transactional(isolation = Isolation.REPEATABLE_READ)
     @KafkaListener(topics = "payment-results")
     public void handlePaymentResult(PaymentResponse result) {
         log.info("결제 결과 수신. UUID: {}, 사용자 ID: {}, 성공 여부: {}", result.getUuid(), result.getUserId(), result.isSuccess());
@@ -207,14 +202,7 @@ public class OrderSaga {
             log.debug("Redis에서 불러온 주문 정보: {}", order);
 
             if (result.isSuccess()) {
-                order.setStatus(OrderStatus.ORDER_COMPLETED);
-                for (OrderItem item : order.getOrderItems()) {
-                    item.setOrder(order);
-                    log.debug("주문 아이템 설정: {}", item);
-                }
-                log.info(order.toString());
-                Order savedOrder = orderRepository.save(order);
-                log.info("주문 저장 완료. 주문 ID: {}", savedOrder.getId());
+                processSuccessfulPayment(order);
             } else {
                 log.warn("결제 실패. 보상 트랜잭션 시작");
                 compensatePaymentFailure(order);
@@ -226,6 +214,27 @@ public class OrderSaga {
         } catch (JsonProcessingException e) {
             log.error("결제 결과 처리 중 JSON 파싱 오류 발생", e);
             throw new InternalServerErrorException(ErrorCode.PAYMENT_RESULT_PROCESSING_FAILED);
+        } catch (Exception e) {
+            log.error("주문 처리 중 예기치 못한 오류 발생", e);
+            throw new InternalServerErrorException(ErrorCode.UNKNOWN_ERROR);
+        }
+    }
+
+    // 결제 성공 처리
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void processSuccessfulPayment(Order order) {
+        try {
+            order.setStatus(OrderStatus.ORDER_COMPLETED);
+            for (OrderItem item : order.getOrderItems()) {
+                item.setOrder(order);
+                log.debug("주문 아이템 설정: {}", item);
+            }
+            log.info("주문 정보: {}", order);
+            Order savedOrder = orderRepository.save(order);
+            log.info("주문 저장 완료. 주문 ID: {}", savedOrder.getId());
+        } catch (DataAccessException e) {
+            log.error("주문 저장 중 데이터베이스 오류 발생", e);
+            throw new InternalServerErrorException(ErrorCode.ORDER_SAVE_FAILED);
         } catch (Exception e) {
             log.error("주문 처리 중 예기치 못한 오류 발생", e);
             throw new InternalServerErrorException(ErrorCode.UNKNOWN_ERROR);

@@ -1,21 +1,20 @@
-services:
-  # app:
-  #   build:
-  #     context: ../backend/zzimcong
-  #     dockerfile: Dockerfile
-  #   container_name: zzimcong-app
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - db
-  #     - redis
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/zzimcong?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-  #     SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-  #     SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-  #     SPRING_REDIS_HOST: redis
-  #     SPRING_REDIS_PORT: 6379
+# jenkins:
+#   build:
+#     context: ./jenkins
+#     dockerfile: Dockerfile
+#   container_name: zzimcong-jenkins
+#   privileged: true
+#   user: root
+#   ports:
+#     - "9090:9090"
+#     - "50000:50000"
+#   volumes:
+#     - ./jenkins_home:/var/jenkins_home
+#     - /var/run/docker.sock:/var/run/docker.sock
 
+version: "3"
+
+services:
   db:
     image: mysql:8.0
     container_name: zzimcong-mysql
@@ -23,11 +22,13 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: zzimcong
     volumes:
-      - ../database/my.cnf:/etc/mysql/conf.d/custom.cnf
-      - ../database/init:/docker-entrypoint-initdb.d
-      # - ../database/mysql-data:/var/lib/mysql
+      # - mysql_data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf
+      - ./mysql/init:/docker-entrypoint-initdb.d
     ports:
       - "3306:3306"
+    networks:
+      - app-network
 
   redis:
     image: redis:6.2-alpine
@@ -35,18 +36,24 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ../database/redis-data:/data
+      - redis_data:/data
+    networks:
+      - app-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
+    container_name: zzimcong-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - 22181:2181
+    networks:
+      - app-network
 
   kafka:
     image: confluentinc/cp-kafka:latest
+    container_name: zzimcong-kafka
     depends_on:
       - zookeeper
     ports:
@@ -58,17 +65,130 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - app-network
 
-  # jenkins:
-  #   build:
-  #     context: ./jenkins
-  #     dockerfile: Dockerfile
-  #   container_name: zzimcong-jenkins
-  #   privileged: true
-  #   user: root
-  #   ports:
-  #     - "9090:9090"
-  #     - "50000:50000"
-  #   volumes:
-  #     - ./jenkins_home:/var/jenkins_home
-  #     - /var/run/docker.sock:/var/run/docker.sock
+  prometheus:
+    image: prom/prometheus:v2.30.3
+    container_name: zzimcong-prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    ports:
+      - 9090:9090
+    restart: always
+    networks:
+      - app-network
+
+  eureka-server:
+    build:
+      context: ../backend/eureka-server
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - app-network
+
+  user-service:
+    build:
+      context: ../backend/user
+      dockerfile: Dockerfile
+    container_name: user-service
+    depends_on:
+      - db
+      - redis
+      - eureka-server
+      - kafka
+      - zookeeper
+      - prometheus
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/zzimcong?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
+
+  product-service:
+    build:
+      context: ../backend/product
+      dockerfile: Dockerfile
+    container_name: product-service
+    depends_on:
+      - db
+      - redis
+      - eureka-server
+      - kafka
+      - zookeeper
+      - prometheus
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/zzimcong?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8082:8082"
+    networks:
+      - app-network
+
+  order-service:
+    build:
+      context: ../backend/order
+      dockerfile: Dockerfile
+    container_name: order-service
+    depends_on:
+      - db
+      - redis
+      - eureka-server
+      - kafka
+      - zookeeper
+      - prometheus
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/zzimcong?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8083:8083"
+    networks:
+      - app-network
+
+  api-gateway:
+    build:
+      context: ../backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    depends_on:
+      - eureka-server
+      - user-service
+      - product-service
+      - order-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+
+volumes:
+  prometheus_data:
+  mysql_data:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge

@@ -6,12 +6,14 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
+@NoArgsConstructor
 @Entity
 @Table(name = "products")  // 복수형 사용
 public class Product {
@@ -54,9 +56,6 @@ public class Product {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
-
-    protected Product() {
-    }
 
     public Product(ProductRequestDto productRequestDto, Category category) {
         this.name = productRequestDto.getName();

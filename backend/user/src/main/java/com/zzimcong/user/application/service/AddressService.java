@@ -32,9 +32,9 @@ public class AddressService {
 
     public AddressResponse getAddress(Long userId, Long id) {
         Address address = addressRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("주소를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.ADDRESS_NOT_FOUND));
         if (!address.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("해당 주소에 접근할 수 없습니다.");
+            throw new NotFoundException(ErrorCode.ADDRESS_NOT_FOUND);
         }
         return addressMapper.toDto(address);
     }

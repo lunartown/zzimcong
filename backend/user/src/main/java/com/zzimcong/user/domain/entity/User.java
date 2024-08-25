@@ -6,6 +6,7 @@ import lombok.*;
 @Entity
 @Table(name = "users")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -40,26 +41,8 @@ public class User {
     @Builder.Default
     private UserRole role = UserRole.USER;
 
-    public static UserRole defaultRole(UserRole role) {
-        return role != null ? role : UserRole.USER;
-    }
-
     public void signOut() {
         this.signout = true;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    // 비밀번호 변경 메서드
-    public void setPassword(String newPassword) {
-        // 여기에 비밀번호 유효성 검사 로직을 추가할 수 있습니다.
-        this.password = newPassword;
     }
 
     // role을 변경하는 메서드

@@ -1,29 +1,20 @@
 package com.zzimcong.zzimconginventorycore.common.event;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonSerialize
+@JsonDeserialize
 public class ShippingEvent implements KafkaMessage {
     private Long orderId;
     private ShippingEventType eventType;
-
-    public ShippingEvent(Long orderId, ShippingEventType eventType) {
-        this.orderId = orderId;
-        this.eventType = eventType;
-    }
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public ShippingEventType getEventType() {
-        return eventType;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-
-    public void setEventType(ShippingEventType eventType) {
-        this.eventType = eventType;
-    }
 }

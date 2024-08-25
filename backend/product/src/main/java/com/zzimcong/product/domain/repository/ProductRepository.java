@@ -12,7 +12,9 @@ import java.util.List;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE (:search IS NULL OR p.name LIKE %:search%) AND p.category.id IN :categoryIds")
+    @Query("SELECT p FROM Product p " +
+            "WHERE (:search IS NULL OR p.name LIKE %:search%) " +
+            "AND (:categoryIds IS NULL OR p.category.id IN :categoryIds)")
     Page<Product> findAllWithFilters(
             @Param("search") String search,
             @Param("categoryIds") List<Long> categoryIds,

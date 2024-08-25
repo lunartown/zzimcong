@@ -88,6 +88,14 @@ dependencies {
 
     //p6spy
     implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0'
+
+    //junit5
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    //prometheus
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
 }
 
 dependencyManagement {

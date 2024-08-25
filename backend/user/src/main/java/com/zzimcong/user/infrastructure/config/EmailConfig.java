@@ -31,7 +31,7 @@ public class EmailConfig {
                 emailProperties.getProperties().getMail().getSmtp().getStarttls().isEnable()));
 
         // 개발 환경에서만 디버그 모드 활성화
-        if (System.getProperty("spring.profiles.active", "").contains("dev")) {
+        if (System.getProperty("spring.profiles.active", "").contains("local")) {
             props.put("mail.debug", "true");
         }
 

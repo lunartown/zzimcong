@@ -55,6 +55,7 @@ public class ProductService {
             updateProduct.setContent(productRequestDto.getContent());
             updateProduct.setImage(productRequestDto.getImage());
             updateProduct.setAvailableQuantity(productRequestDto.getAvailableQuantity());
+            updateProduct.setReservedQuantity(productRequestDto.getReservedQuantity());
             Category category = categoryService.getCategoryById(productRequestDto.getCategoryId());
             updateProduct.setCategory(category);
             Product updatedProduct = productRepository.save(updateProduct);
@@ -64,6 +65,7 @@ public class ProductService {
         }
     }
 
+    //상품 목록 조회
     public List<ProductResponseDto> getProducts(int page, int size, String search, Long categoryId) {
         List<Long> categoryIds = categoryId != null ?
                 categoryService.findAllSubCategoryIds(categoryId) : null;
@@ -79,6 +81,7 @@ public class ProductService {
         return productPage.map(ProductResponseDto::of).getContent();
     }
 
+    //상품 삭제
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id).orElse(null);
         if (product != null) {
@@ -87,6 +90,7 @@ public class ProductService {
         }
     }
 
+    //재고 예약
     @Transactional
     public ReserveInventoryResponse reserveInventory(Long productId, ReserveInventoryRequest request) {
         log.info("Attempting to reserve inventory for product ID: {}, Requested quantity: {}", productId, request.getQuantity());
@@ -123,6 +127,7 @@ public class ProductService {
         }
     }
 
+    //재고 해제
     @Transactional
     public void releaseInventory(Long productId, ReleaseInventoryRequest request) {
         log.info("Attempting to release inventory for product ID: {}, Release quantity: {}", productId, request.getQuantity());

@@ -3,6 +3,8 @@ package com.zzimcong.order.application.service;
 import com.zzimcong.order.application.dto.OrderResponse;
 import com.zzimcong.order.application.dto.RefundResponse;
 import com.zzimcong.order.application.mapper.OrderMapper;
+import com.zzimcong.order.common.exception.ErrorCode;
+import com.zzimcong.order.common.exception.NotFoundException;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderStatus;
 import com.zzimcong.order.domain.repository.OrderRepository;
@@ -133,13 +135,12 @@ public class OrderService {
     /**********************************************
      주문 조회
      **********************************************/
-    @Transactional(readOnly = true)
     public Order getOrder(Long orderId) {
         log.debug("Fetching order with ID: {}", orderId);
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", orderId);
-                    return new RuntimeException("주문을 찾을 수 없습니다: " + orderId);
+                    return new NotFoundException(ErrorCode.ORDER_NOT_FOUND);
                 });
     }
 
