@@ -12,11 +12,14 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j(topic = "payment-service")
 @Service
 public class PaymentService {
     private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
+    private final Set<String> processedPayments = ConcurrentHashMap.newKeySet();
     private final Random random = new Random();
 
     @Autowired
@@ -26,19 +29,52 @@ public class PaymentService {
 
     @KafkaListener(topics = "payment-requests")
     public void processPayment(PaymentRequest request) {
-        // 90% 확률로 결제 성공, 10% 확률로 결제 실패 시뮬레이션
-        boolean isSuccess = random.nextInt(100) < 90;
+        String paymentKey = request.getUuid();
 
-        PaymentResponse result = new PaymentResponse(request.getUserId(), request.getUuid(), isSuccess);
-
-        if (isSuccess) {
-            log.info("결제 성공: 주문 ID {}", request.getUuid());
-        } else {
-            log.info("결제 실패: 주문 ID {}", request.getUuid());
+        if (processedPayments.contains(paymentKey)) {
+            log.warn("중복 결제 요청 감지: 주문 ID {}", paymentKey);
+            return;
         }
 
-        // 결제 결과를 Kafka로 전송
-        kafkaTemplate.send("payment-results", result);
+        try {
+            processedPayments.add(paymentKey);
+
+            // 실제 결제 로직을 여기에 구현합니다.
+            // 현재는 시뮬레이션을 위해 90% 확률로 성공으로 처리합니다.
+            boolean isSuccess = random.nextInt(100) < 90;
+
+            PaymentResponse result = new PaymentResponse(request.getUserId(), paymentKey, isSuccess);
+
+            if (isSuccess) {
+                log.info("결제 성공: 주문 ID {}", paymentKey);
+            } else {
+                log.info("결제 실패: 주문 ID {}", paymentKey);
+            }
+
+            // 결제 결과를 Kafka로 전송
+            kafkaTemplate.send("payment-results", result);
+
+        } catch (Exception e) {
+            log.error("결제 처리 중 오류 발생: 주문 ID {}", paymentKey, e);
+            PaymentResponse errorResult = new PaymentResponse(request.getUserId(), paymentKey, false);
+            kafkaTemplate.send("payment-results", errorResult);
+        } finally {
+            // 일정 시간 후에 처리된 결제 목록에서 제거 (메모리 관리를 위해)
+            scheduleRemovalFromProcessedPayments(paymentKey);
+        }
+    }
+
+    private void scheduleRemovalFromProcessedPayments(String paymentKey) {
+        // 예: 30분 후에 처리된 결제 목록에서 제거
+        // 실제 구현 시 스케줄러나 캐시 라이브러리를 사용할 수 있습니다.
+        new Thread(() -> {
+            try {
+                Thread.sleep(30 * 60 * 1000); // 30분
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            processedPayments.remove(paymentKey);
+        }).start();
     }
 
     public void refundPayment(Order order) {

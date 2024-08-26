@@ -42,7 +42,7 @@ public class CartService {
             throw new BadRequestException(ErrorCode.INVALID_QUANTITY);
         }
 
-        if (product.getAvailableQuantity() < count) {
+        if (product.getStock() < count) {
             throw new ConflictException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
@@ -74,7 +74,7 @@ public class CartService {
         Product product = cartItem.getProduct();
         int stockDifference = count - cartItem.getCount();
 
-        if (product.getAvailableQuantity() < stockDifference) {
+        if (product.getStock() < stockDifference) {
             throw new ConflictException(ErrorCode.INSUFFICIENT_STOCK);
         }
 

@@ -1,6 +1,7 @@
 package com.zzimcong.product.api.controller;
 
-import com.zzimcong.product.application.dto.*;
+import com.zzimcong.product.application.dto.ProductRequestDto;
+import com.zzimcong.product.application.dto.ProductResponseDto;
 import com.zzimcong.product.application.service.ProductService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,21 +66,5 @@ public class ProductController {
     public ResponseEntity<Void> updateProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok().build();
-    }
-
-    //상품 재고 예약
-    @PostMapping("/{productId}/reserve")
-    public ResponseEntity<ReserveInventoryResponse> reserveInventory(@PathVariable("productId") Long productId,
-                                                                     @RequestBody ReserveInventoryRequest request) {
-        ReserveInventoryResponse response = productService.reserveInventory(productId, request);
-        return ResponseEntity.ok(response);
-    }
-
-    //상품 재고 해제
-    @PostMapping("/{productId}/release")
-    public ResponseEntity<Void> releaseInventory(@PathVariable("productId") Long productId,
-                                                 @RequestBody ReleaseInventoryRequest request) {
-        productService.releaseInventory(productId, request);
-        return ResponseEntity.noContent().build();
     }
 }

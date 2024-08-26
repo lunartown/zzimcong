@@ -12,8 +12,7 @@ public class ProductResponseDto {
     private int sale;
     private String content;
     private String image;
-    private int availableQuantity;
-    private int reservedQuantity;
+    private int stock;
     private String createdAt;
     private boolean deleted;
 
@@ -25,8 +24,7 @@ public class ProductResponseDto {
         this.sale = product.getSale();
         this.content = product.getContent();
         this.image = product.getImage();
-        this.availableQuantity = product.getAvailableQuantity();
-        this.reservedQuantity = product.getReservedQuantity();
+        this.stock = product.getStock();
         this.createdAt = product.getCreatedAt().toString();
         this.deleted = product.isDeleted();
     }

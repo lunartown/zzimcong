@@ -18,7 +18,7 @@ public enum OrderStatus {
     ORDER_CONFIRMED("주문 확정"),
     CANCELED("취소됨"),
     REFUND_REQUESTED("환불 신청됨"),
-    REFUND_COMPLETED("환불 완료됨");
+    REFUND_COMPLETED("환불 완료");
 
     private final String description;
 }

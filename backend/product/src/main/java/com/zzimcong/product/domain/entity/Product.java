@@ -42,10 +42,7 @@ public class Product {
     private String image;
 
     @Column(nullable = false)
-    private int availableQuantity;
-
-    @Column(nullable = false)
-    private int reservedQuantity;
+    private int stock;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -63,8 +60,7 @@ public class Product {
         this.sale = productRequestDto.getSale();
         this.content = productRequestDto.getContent();
         this.image = productRequestDto.getImage();
-        this.availableQuantity = productRequestDto.getAvailableQuantity();
-        this.reservedQuantity = productRequestDto.getReservedQuantity();
+        this.stock = productRequestDto.getStock();
         this.category = category;
     }
 }

@@ -4,16 +4,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zzimcong.order.application.dto.*;
 import com.zzimcong.order.application.mapper.OrderRequestMapper;
-import com.zzimcong.order.application.service.ProductService;
+import com.zzimcong.order.application.queue.OrderSaveQueue;
+import com.zzimcong.order.application.service.InventoryService;
 import com.zzimcong.order.common.exception.ErrorCode;
 import com.zzimcong.order.common.exception.InternalServerErrorException;
-import com.zzimcong.order.common.exception.InventoryException;
 import com.zzimcong.order.common.exception.NotFoundException;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderItem;
 import com.zzimcong.order.domain.entity.OrderStatus;
-import com.zzimcong.order.domain.repository.OrderRepository;
-import feign.FeignException;
+import com.zzimcong.zzimconginventorycore.common.event.InventoryUpdateEvent;
+import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -22,8 +22,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,12 +36,12 @@ import java.util.concurrent.ExecutionException;
 @Slf4j(topic = "order-saga")
 @RequiredArgsConstructor
 public class OrderSaga {
-    private final ProductService productService;
+    private final InventoryService inventoryService;
     private final OrderRequestMapper orderRequestMapper;
     private final ObjectMapper objectMapper;
+    private final OrderSaveQueue orderSaveQueue;
     private final RedisTemplate<String, String> redisTemplate;
-    private final OrderRepository orderRepository;
-    private final KafkaTemplate<String, PaymentRequest> kafkaTemplate;
+    private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
 
 
     /***************************************************************************
@@ -51,8 +49,10 @@ public class OrderSaga {
      ***************************************************************************/
 
     // 주문 준비
+    @Transactional
     public OrderPreparationResponse prepareOrder(Long userId, OrderPreparationRequest request) {
-        boolean allReserved = reserveInventory(request);
+        boolean allReserved = request.items().stream()
+                .allMatch(item -> inventoryService.reserveInventory(item.productId(), item.quantity()));
         if (allReserved) {
             Order tempOrder = createTempOrder(userId, request);
             String orderUuid = saveTempOrderToRedis(userId, tempOrder);
@@ -60,22 +60,6 @@ public class OrderSaga {
         } else {
             return new OrderPreparationResponse(null, OrderPreparationStatus.INVENTORY_SHORTAGE);
         }
-    }
-
-    // 재고 예약
-    @Transactional(rollbackFor = {InventoryException.class})
-    @Retryable(value = {InventoryException.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    public boolean reserveInventory(OrderPreparationRequest request) {
-        log.info("재고 예약 시작");
-        return request.items().stream()
-                .allMatch(item -> {
-                    try {
-                        return productService.reserveInventory(item.productId(), item.quantity());
-                    } catch (FeignException e) {
-                        log.error("재고 예약 실패. 상품 ID: {}, 수량: {}", item.productId(), item.quantity(), e);
-                        throw new InventoryException(ErrorCode.RESERVE_INVENTORY_FAILED, e.getMessage());
-                    }
-                });
     }
 
     // 임시 주문 생성
@@ -184,6 +168,10 @@ public class OrderSaga {
         }
     }
 
+    /***************************************************************************
+     결제 결과 처리 프로세스(결제 결과 처리, 결제 성공 처리, 보상 트랜잭션)
+     ***************************************************************************/
+
     // 결제 결과 처리
     @KafkaListener(topics = "payment-results")
     public void handlePaymentResult(PaymentResponse result) {
@@ -228,10 +216,23 @@ public class OrderSaga {
             for (OrderItem item : order.getOrderItems()) {
                 item.setOrder(order);
                 log.debug("주문 아이템 설정: {}", item);
+
+                // Redis의 예약된 재고를 실제 차감으로 변경
+                boolean stockUpdated = inventoryService.confirmInventoryReduction(item.getProductId(), item.getQuantity());
+                if (!stockUpdated) {
+                    throw new InternalServerErrorException(ErrorCode.INVENTORY_UPDATE_FAILED,
+                            "Failed to update inventory for product: " + item.getProductId());
+                }
+
+                // 실제 데이터베이스의 재고 차감 (Kafka를 통해 비동기적으로 처리)
+                kafkaTemplate.send("inventory-update", new InventoryUpdateEvent(item.getProductId(), item.getQuantity()));
             }
+
             log.info("주문 정보: {}", order);
-            Order savedOrder = orderRepository.save(order);
-            log.info("주문 저장 완료. 주문 ID: {}", savedOrder.getId());
+            // 주문 저장을 큐에 추가
+            String orderJson = objectMapper.writeValueAsString(order);
+            orderSaveQueue.addToSaveQueue(orderJson);
+            log.info("주문 저장 큐에 추가됨. 주문 ID: {}", order.getId());
         } catch (DataAccessException e) {
             log.error("주문 저장 중 데이터베이스 오류 발생", e);
             throw new InternalServerErrorException(ErrorCode.ORDER_SAVE_FAILED);
@@ -246,9 +247,9 @@ public class OrderSaga {
         log.info("결제 실패에 대한 보상 트랜잭션 시작. 주문 ID: {}", order.getId());
         for (OrderItem item : order.getOrderItems()) {
             try {
-                productService.releaseInventory(item.getProductId(), item.getQuantity());
+                inventoryService.rollbackInventory(item.getProductId(), item.getQuantity());
                 log.info("재고 해제 성공: 상품 ID: {}, 수량: {}", item.getProductId(), item.getQuantity());
-            } catch (FeignException e) {
+            } catch (Exception e) {
                 log.error("재고 해제 실패: 상품 ID: {}, 수량: {}, 오류: {}",
                         item.getProductId(), item.getQuantity(), e.getMessage());
                 // 추가적인 오류 처리 로직

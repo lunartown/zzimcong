@@ -10,6 +10,5 @@ public class ProductRequestDto {
     private int sale;
     private String content;
     private String image;
-    private int availableQuantity;
-    private int reservedQuantity;
+    private int stock;
 }
