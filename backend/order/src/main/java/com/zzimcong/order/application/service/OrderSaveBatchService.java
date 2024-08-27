@@ -145,7 +145,6 @@ public class OrderSaveBatchService {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         if (!ordersToRetry.isEmpty()) {
-            //무한 시도 중
             saveOrdersWithRetry(ordersToRetry);
         }
     }
