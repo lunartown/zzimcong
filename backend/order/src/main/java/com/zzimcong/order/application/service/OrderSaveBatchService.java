@@ -4,9 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zzimcong.order.application.queue.OrderSaveQueue;
 import com.zzimcong.order.domain.entity.Order;
+import com.zzimcong.order.domain.entity.OrderItem;
 import com.zzimcong.order.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,11 +20,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class OrderSaveBatchService {
+    @Autowired
+    @Qualifier("applicationTaskExecutor")
+    private Executor asyncExecutor;
     private final OrderSaveQueue orderSaveQueue;
     private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
@@ -52,43 +61,91 @@ public class OrderSaveBatchService {
         }
     }
 
+//    private void saveOrdersWithRetry(Map<Order, Integer> ordersToSave) {
+//        List<Order> successfulOrders = new ArrayList<>();
+//        Map<Order, Integer> failedOrders = new HashMap<>();
+//
+//        for (Map.Entry<Order, Integer> entry : ordersToSave.entrySet()) {
+//            Order order = entry.getKey();
+//            int retryCount = entry.getValue();
+//
+//            try {
+////                // 중복 체크 (예: 주문 ID로 이미 저장된 주문인지 확인)
+////                if (orderRepository.existsById(order.getId())) {
+////                    log.warn("주문 ID {}는 이미 저장되어 있습니다. 건너뜁니다.", order.getId());
+////                    continue;
+////                }
+//
+//                for (OrderItem item : order.getOrderItems()) {
+//                    item.setOrder(order);
+//                }
+//
+//                order = orderRepository.save(order);
+//                successfulOrders.add(order);
+//                log.info("주문 저장 성공: {}", order.getId());
+//            } catch (DataIntegrityViolationException e) {
+//                log.warn("주문 저장 중 데이터 무결성 위반 발생: {}", order.getId(), e);
+//                // 데이터 무결성 위반은 재시도하지 않고 바로 실패 처리
+//                handleFailedOrderWithExceptionHandling(order);
+//            } catch (Exception e) {
+//                log.error("주문 저장 중 오류 발생: {}", order.getId(), e);
+//                if (retryCount < MAX_RETRIES) {
+//                    failedOrders.put(order, retryCount + 1);
+//                } else {
+//                    handleFailedOrderWithExceptionHandling(order);
+//                }
+//            }
+//        }
+//
+//        log.info("배치 처리 결과 - 성공: {}, 실패: {}", successfulOrders.size(), failedOrders.size());
+//
+//        // 실패한 주문 재시도
+//        if (!failedOrders.isEmpty()) {
+//            saveOrdersWithRetry(failedOrders);
+//        }
+//    }
+
     private void saveOrdersWithRetry(Map<Order, Integer> ordersToSave) {
-        List<Order> successfulOrders = new ArrayList<>();
-        Map<Order, Integer> failedOrders = new HashMap<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (Map.Entry<Order, Integer> entry : ordersToSave.entrySet()) {
             Order order = entry.getKey();
             int retryCount = entry.getValue();
 
-            try {
-                // 중복 체크 (예: 주문 ID로 이미 저장된 주문인지 확인)
-                if (orderRepository.existsById(order.getId())) {
-                    log.warn("주문 ID {}는 이미 저장되어 있습니다. 건너뜁니다.", order.getId());
-                    continue;
-                }
-
-                orderRepository.save(order);
-                successfulOrders.add(order);
-                log.info("주문 저장 성공: {}", order.getId());
-            } catch (DataIntegrityViolationException e) {
-                log.warn("주문 저장 중 데이터 무결성 위반 발생: {}", order.getId(), e);
-                // 데이터 무결성 위반은 재시도하지 않고 바로 실패 처리
-                handleFailedOrderWithExceptionHandling(order);
-            } catch (Exception e) {
-                log.error("주문 저장 중 오류 발생: {}", order.getId(), e);
-                if (retryCount < MAX_RETRIES) {
-                    failedOrders.put(order, retryCount + 1);
-                } else {
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                try {
+                    for (OrderItem item : order.getOrderItems()) {
+                        item.setOrder(order);
+                    }
+                    Order savedOrder = orderRepository.save(order);
+                    log.info("주문 저장 성공: {}", savedOrder.getId());
+                } catch (DataIntegrityViolationException e) {
+                    log.warn("주문 저장 중 데이터 무결성 위반 발생: {}", order.getId(), e);
                     handleFailedOrderWithExceptionHandling(order);
+                } catch (Exception e) {
+                    log.error("주문 저장 중 오류 발생: {}", order.getId(), e);
+                    if (retryCount < MAX_RETRIES) {
+                        // 재시도 로직
+                        ordersToSave.put(order, retryCount + 1);
+                    } else {
+                        handleFailedOrderWithExceptionHandling(order);
+                    }
                 }
-            }
+            }, asyncExecutor);
+
+            futures.add(future);
         }
 
-        log.info("배치 처리 결과 - 성공: {}, 실패: {}", successfulOrders.size(), failedOrders.size());
+        // 모든 비동기 작업이 완료될 때까지 대기
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-        // 실패한 주문 재시도
-        if (!failedOrders.isEmpty()) {
-            saveOrdersWithRetry(failedOrders);
+        // 재시도가 필요한 주문들을 다시 처리
+        Map<Order, Integer> ordersToRetry = ordersToSave.entrySet().stream()
+                .filter(e -> e.getValue() < MAX_RETRIES)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        if (!ordersToRetry.isEmpty()) {
+            saveOrdersWithRetry(ordersToRetry);
         }
     }
 
