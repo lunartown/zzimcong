@@ -40,7 +40,7 @@ public class OrderSaveBatchService {
     private static final int MAX_RETRIES = 3;
     private static final int BATCH_SIZE = 50;
 
-    @Scheduled(fixedRate = 5000) // 5초마다 실행
+    @Scheduled(fixedRate = 50000) // 5초마다 실행
     @Transactional
     public void processSaveBatch() {
         List<String> batch = orderSaveQueue.getOrderSaveBatch(BATCH_SIZE);
@@ -145,6 +145,7 @@ public class OrderSaveBatchService {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         if (!ordersToRetry.isEmpty()) {
+            //무한 시도 중
             saveOrdersWithRetry(ordersToRetry);
         }
     }

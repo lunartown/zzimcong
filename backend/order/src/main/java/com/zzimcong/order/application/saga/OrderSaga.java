@@ -12,14 +12,13 @@ import com.zzimcong.order.common.exception.NotFoundException;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderItem;
 import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.order.domain.repository.OrderRepository;
 import com.zzimcong.zzimconginventorycore.common.event.InventoryUpdateEvent;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -28,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.ConcurrentModificationException;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -40,6 +38,7 @@ public class OrderSaga {
     private final OrderRequestMapper orderRequestMapper;
     private final ObjectMapper objectMapper;
     private final OrderSaveQueue orderSaveQueue;
+    private final OrderRepository orderRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
 
@@ -110,48 +109,36 @@ public class OrderSaga {
         processPayment(userId, uuid, request.paymentDetailsRequest(), order);
     }
 
-    // 주문 정보 업데이트
     public Order updateOrderDetails(Long userId, String uuid, OrderCreationRequest orderCreationRequest) {
         String key = "temp_order:" + userId + ":" + uuid;
 
-        return (Order) redisTemplate.execute(new SessionCallback<Object>() {
-            @Override
-            public Object execute(RedisOperations operations) throws DataAccessException {
-                operations.watch(key);
-                String orderJson = (String) operations.opsForValue().get(key);
-
-                if (orderJson == null) {
-                    throw new NotFoundException(ErrorCode.TEMP_ORDER_NOT_FOUND, "uuid : " + uuid);
-                }
-
-                try {
-                    operations.multi();
-
-                    Order order = objectMapper.readValue(orderJson, Order.class);
-                    orderRequestMapper.updateOrderFromRequest(orderCreationRequest, order);
-
-                    order.setStatus(OrderStatus.PAYMENT_REQUESTED);
-
-                    String updatedOrderJson = objectMapper.writeValueAsString(order);
-                    operations.opsForValue().set(key, updatedOrderJson);
-                    operations.expire(key, Duration.ofMinutes(15));
-
-                    List<Object> txResults = operations.exec();
-
-                    if (txResults == null || txResults.isEmpty()) {
-                        throw new ConcurrentModificationException("주문 정보가 동시에 수정되었습니다. 다시 시도해주세요.");
-                    }
-
-                    log.info("Order details updated successfully for order: {}", uuid);
-                    return order;
-
-                } catch (JsonProcessingException e) {
-                    operations.discard();
-                    log.error("Error updating temporary order", e);
-                    throw new InternalServerErrorException(ErrorCode.ORDER_UPDATE_FAILED);
-                }
+        try {
+            // 1. Redis에서 주문 정보 조회
+            String orderJson = redisTemplate.opsForValue().get(key);
+            if (orderJson == null) {
+                throw new NotFoundException(ErrorCode.TEMP_ORDER_NOT_FOUND, "uuid : " + uuid);
             }
-        });
+
+            // 2. 주문 정보 업데이트
+            Order order = objectMapper.readValue(orderJson, Order.class);
+            orderRequestMapper.updateOrderFromRequest(orderCreationRequest, order);
+            order.setStatus(OrderStatus.PAYMENT_REQUESTED);
+
+            // 3. 업데이트된 주문 정보를 Redis에 저장
+            String updatedOrderJson = objectMapper.writeValueAsString(order);
+            Boolean updateSuccess = redisTemplate.opsForValue().setIfPresent(key, updatedOrderJson, Duration.ofMinutes(15));
+
+            if (Boolean.FALSE.equals(updateSuccess)) {
+                throw new ConcurrentModificationException("주문 정보가 동시에 수정되었습니다. 다시 시도해주세요.");
+            }
+
+            log.info("Order details updated successfully for order: {}", uuid);
+            return order;
+
+        } catch (JsonProcessingException e) {
+            log.error("Error processing JSON for order: {}", uuid, e);
+            throw new InternalServerErrorException(ErrorCode.ORDER_UPDATE_FAILED);
+        }
     }
 
     // 결제 요청
@@ -229,10 +216,13 @@ public class OrderSaga {
             }
 
             log.info("주문 정보: {}", order);
+
+            orderRepository.save(order);
+            log.info("주문 저장 성공. 주문 ID: {}", order.getId());
             // 주문 저장을 큐에 추가
-            String orderJson = objectMapper.writeValueAsString(order);
-            orderSaveQueue.addToSaveQueue(orderJson);
-            log.info("주문 저장 큐에 추가됨. 주문 ID: {}", order.getId());
+//            String orderJson = objectMapper.writeValueAsString(order);
+//            orderSaveQueue.addToSaveQueue(orderJson);
+//            log.info("주문 저장 큐에 추가됨. 주문 ID: {}", order.getId());
         } catch (DataAccessException e) {
             log.error("주문 저장 중 데이터베이스 오류 발생", e);
             throw new InternalServerErrorException(ErrorCode.ORDER_SAVE_FAILED);
