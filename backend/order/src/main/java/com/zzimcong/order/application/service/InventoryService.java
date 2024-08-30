@@ -1,121 +1,158 @@
 package com.zzimcong.order.application.service;
 
+import com.zzimcong.order.application.dto.ProductQuantity;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @Slf4j(topic = "INVENTORY-SERVICE")
+@RequiredArgsConstructor
 public class InventoryService {
-    private final RedissonClient redissonClient;
-    private static final long LOCK_WAIT_TIME = 5000L; // 5초
-    private static final long LOCK_LEASE_TIME = 10000L; // 10초
+    private final RedisTemplate<String, String> redisTemplate;
 
-    public InventoryService(RedissonClient redissonClient) {
-        this.redissonClient = redissonClient;
-    }
+    // 재고 예약 Lua 스크립트 (기존과 동일)
+    private static final String RESERVE_INVENTORY_SCRIPT =
+            "local success = true " +
+                    "local inventories = {} " +
+                    "for i = 1, #KEYS do " +
+                    "   local inventoryKey = KEYS[i] " +
+                    "   local quantity = tonumber(ARGV[i]) " +
+                    "   local currentStock = redis.call('get', inventoryKey) " +
+                    "   if currentStock == false or tonumber(currentStock) < quantity then " +
+                    "       success = false " +
+                    "       break " +
+                    "   end " +
+                    "   inventories[i] = {inventoryKey, currentStock, quantity} " +
+                    "end " +
+                    "if success then " +
+                    "   for i = 1, #inventories do " +
+                    "       local inv = inventories[i] " +
+                    "       redis.call('decrby', inv[1], inv[3]) " +
+                    "   end " +
+                    "   return 1 " +
+                    "else " +
+                    "   return 0 " +
+                    "end";
 
-    public boolean reserveInventory(Long productId, int quantity) {
-        String lockKey = "lock:inventory:" + productId;
-        RLock lock = redissonClient.getLock(lockKey);
+    // 재고 감소 확인 Lua 스크립트
+    private static final String CONFIRM_INVENTORY_REDUCTION_SCRIPT =
+            "local success = true " +
+                    "for i = 1, #KEYS do " +
+                    "   local inventoryKey = KEYS[i] " +
+                    "   local quantity = tonumber(ARGV[i]) " +
+                    "   local currentStock = redis.call('get', inventoryKey) " +
+                    "   if currentStock == false or tonumber(currentStock) < 0 then " +
+                    "       success = false " +
+                    "       break " +
+                    "   end " +
+                    "end " +
+                    "return success and 1 or 0";
+
+    // 재고 롤백 Lua 스크립트
+    private static final String ROLLBACK_INVENTORY_SCRIPT =
+            "local success = true " +
+                    "for i = 1, #KEYS do " +
+                    "   local inventoryKey = KEYS[i] " +
+                    "   local quantity = tonumber(ARGV[i]) " +
+                    "   local currentStock = redis.call('get', inventoryKey) " +
+                    "   if currentStock == false then " +
+                    "       redis.call('set', inventoryKey, quantity) " +
+                    "   else " +
+                    "       redis.call('incrby', inventoryKey, quantity) " +
+                    "   end " +
+                    "end " +
+                    "return 1";
+
+    public boolean reserveInventory(List<ProductQuantity> productQuantities) {
+        List<String> keys = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+
+        for (ProductQuantity pq : productQuantities) {
+            keys.add("inventory:" + pq.productId());
+            values.add(String.valueOf(pq.quantity()));
+        }
 
         try {
-            if (!lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MILLISECONDS)) {
-                log.warn("재고 예약을 위한 락 획득 실패 (상품 ID: {})", productId);
-                return false;
+            Long result = redisTemplate.execute(
+                    RedisScript.of(RESERVE_INVENTORY_SCRIPT, Long.class),
+                    keys,
+                    values.toArray()
+            );
+
+            boolean success = (result != null && result == 1);
+            if (success) {
+                log.info("재고 예약 성공: {}", productQuantities);
+            } else {
+                log.warn("재고 예약 실패: {}", productQuantities);
             }
-
-            String inventoryKey = "inventory:" + productId;
-            String reservedKey = "reserved:" + productId;
-
-            RBucket<Integer> inventoryBucket = redissonClient.getBucket(inventoryKey);
-            RBucket<Integer> reservedBucket = redissonClient.getBucket(reservedKey);
-
-            Integer currentStock = inventoryBucket.get();
-            Integer reservedStock = reservedBucket.get();
-
-            if (currentStock == null || currentStock - (reservedStock != null ? reservedStock : 0) < quantity) {
-                return false;
-            }
-
-            reservedBucket.set(reservedStock == null ? quantity : reservedStock + quantity);
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("재고 예약 중 인터럽트 발생 (상품 ID: {})", productId, e);
+            return success;
+        } catch (Exception e) {
+            log.error("재고 예약 중 오류 발생: {}", productQuantities, e);
             return false;
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
         }
     }
 
-    public boolean confirmInventoryReduction(Long productId, int quantity) {
-        String lockKey = "lock:inventory:" + productId;
-        RLock lock = redissonClient.getLock(lockKey);
+    public boolean confirmInventoryReduction(List<ProductQuantity> productQuantities) {
+        List<String> keys = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+
+        for (ProductQuantity pq : productQuantities) {
+            keys.add("inventory:" + pq.productId());
+            values.add(String.valueOf(pq.quantity()));
+        }
 
         try {
-            if (!lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MILLISECONDS)) {
-                log.warn("재고 감소 확인을 위한 락 획득 실패 (상품 ID: {})", productId);
-                return false;
+            Long result = redisTemplate.execute(
+                    RedisScript.of(CONFIRM_INVENTORY_REDUCTION_SCRIPT, Long.class),
+                    keys,
+                    values.toArray()
+            );
+
+            boolean success = (result != null && result == 1);
+            if (success) {
+                log.info("재고 감소 확인 성공: {}", productQuantities);
+            } else {
+                log.warn("재고 감소 확인 실패: {}", productQuantities);
             }
-
-            String inventoryKey = "inventory:" + productId;
-            String reservedKey = "reserved:" + productId;
-
-            RBucket<Integer> inventoryBucket = redissonClient.getBucket(inventoryKey);
-            RBucket<Integer> reservedBucket = redissonClient.getBucket(reservedKey);
-
-            Integer currentStock = inventoryBucket.get();
-            Integer reservedStock = reservedBucket.get();
-
-            if (currentStock == null || reservedStock == null || reservedStock < quantity) {
-                return false;
-            }
-
-            inventoryBucket.set(currentStock - quantity);
-            reservedBucket.set(reservedStock - quantity);
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("재고 감소 확인 중 인터럽트 발생 (상품 ID: {})", productId, e);
+            return success;
+        } catch (Exception e) {
+            log.error("재고 감소 확인 중 오류 발생: {}", productQuantities, e);
             return false;
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
         }
     }
 
-    public void rollbackInventory(Long productId, int quantity) {
-        String lockKey = "lock:inventory:" + productId;
-        RLock lock = redissonClient.getLock(lockKey);
+    public boolean rollbackInventory(List<ProductQuantity> productQuantities) {
+        List<String> keys = new ArrayList<>();
+        List<String> quantities = new ArrayList<>();
+
+        for (ProductQuantity pq : productQuantities) {
+            keys.add("inventory:" + pq.productId());
+            quantities.add(String.valueOf(pq.quantity()));
+        }
 
         try {
-            if (!lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.MILLISECONDS)) {
-                log.warn("재고 롤백을 위한 락 획득 실패 (상품 ID: {})", productId);
-                return;
-            }
+            Long result = redisTemplate.execute(
+                    RedisScript.of(ROLLBACK_INVENTORY_SCRIPT, Long.class),
+                    keys,
+                    quantities.toArray()
+            );
 
-            String reservedKey = "reserved:" + productId;
-            RBucket<Integer> reservedBucket = redissonClient.getBucket(reservedKey);
-            Integer reservedStock = reservedBucket.get();
-
-            if (reservedStock != null && reservedStock >= quantity) {
-                reservedBucket.set(reservedStock - quantity);
+            boolean success = (result != null && result == 1);
+            if (success) {
+                log.info("재고 롤백 성공: {}", productQuantities);
+            } else {
+                log.warn("재고 롤백 실패: {}", productQuantities);
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("재고 롤백 중 인터럽트 발생 (상품 ID: {})", productId, e);
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            return success;
+        } catch (Exception e) {
+            log.error("재고 롤백 중 오류 발생: {}", productQuantities, e);
+            return false;
         }
     }
 }

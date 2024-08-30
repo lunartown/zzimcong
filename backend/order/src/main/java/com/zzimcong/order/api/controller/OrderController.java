@@ -35,12 +35,12 @@ public class OrderController {
     }
 
     // 사용자 정보 입력 완료, 결제 호출
-    @PostMapping("/create/{uuid}")
+    @PostMapping("/create/{tempId}")
     public ResponseEntity<Void> createOrder(@RequestHeader("X-Auth-User-ID") Long userId,
-                                            @PathVariable String uuid,
+                                            @PathVariable String tempId,
                                             @RequestBody OrderCreationRequest request) {
-        log.info("Confirming order ID: {} for user ID: {}", uuid, userId);
-        orderSaga.createOrder(userId, uuid, request);
+        log.info("Confirming order ID: {} for user ID: {}", tempId, userId);
+        orderSaga.createOrder(userId, tempId, request);
         return ResponseEntity.accepted().build();
     }
 
