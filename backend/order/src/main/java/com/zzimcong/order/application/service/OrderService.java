@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Slf4j(topic = "order-service")
+@Slf4j(topic = "ORDER-SERVICE")
 @Service
 @RequiredArgsConstructor
 public class OrderService {

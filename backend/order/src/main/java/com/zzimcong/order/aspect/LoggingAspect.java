@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-@Slf4j
+@Slf4j(topic = "API-LOG")
 @Aspect
 @Component
 public class LoggingAspect {
@@ -23,16 +23,18 @@ public class LoggingAspect {
         String className = joinPoint.getTarget().getClass().getSimpleName();
 
         // 메서드 실행 전 로깅
-        log.info("User ID: {}, Method execution start: {}.{}",
-                userId != null ? userId : "Unknown", className, methodName);
+        log.info("------------------------------------------------------");
+        log.info("Method execution start: {}.{}, User ID: {}",
+                className, methodName, userId != null ? userId : "Unknown");
 
         long start = System.currentTimeMillis();
         Object result = joinPoint.proceed();
         long executionTime = System.currentTimeMillis() - start;
 
         // 메서드 실행 후 로깅
-        log.info("User ID: {}, Method execution end: {}.{}, Execution time: {}ms",
-                userId != null ? userId : "Unknown", className, methodName, executionTime);
+        log.info("Method execution end: {}.{}, User ID: {}, Execution time: {}ms",
+                className, methodName, userId != null ? userId : "Unknown", executionTime);
+        log.info("------------------------------------------------------");
 
         return result;
     }

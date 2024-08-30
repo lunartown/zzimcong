@@ -13,71 +13,84 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j(topic = "INVENTORY-SERVICE")
 @RequiredArgsConstructor
 public class InventoryService {
     private final ProductRepository productRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @PostConstruct
     public void initializeRedisCache() {
-        log.info("Initializing Redis cache with product inventory");
+        log.info("Redis 캐시 초기화 시작");
         List<Product> products = productRepository.findAll();
         for (Product product : products) {
             updateRedisInventory(product.getId(), product.getStock());
         }
+        log.info("Redis 캐시 초기화 완료: {} 개 상품 처리됨", products.size());
     }
 
     @Scheduled(fixedRate = 60000) // 1분마다 실행
-    public void syncInventoryFromRedis() {
-        log.info("Syncing inventory from Redis to database");
-        Set<String> keys = redisTemplate.keys("inventory:*");
-        for (String key : keys) {
-            try {
-                String productId = key.split(":")[1];
-                Integer redisStock = (Integer) redisTemplate.opsForValue().get(key);
-                if (redisStock != null) {
-                    updateDatabaseInventory(Long.parseLong(productId), redisStock);
-                }
-            } catch (Exception e) {
-                log.error("Error syncing inventory for key: {}", key, e);
-            }
+    public void syncInventoryFromDB() {
+        log.info("데이터베이스에서 Redis로 재고 동기화 시작");
+        List<Product> products = productRepository.findAll();
+        for (Product product : products) {
+            updateRedisInventory(product.getId(), product.getStock());
         }
+        log.info("재고 동기화 완료: {} 개 상품 처리됨", products.size());
     }
 
     @KafkaListener(topics = "inventory-update")
     public void handleInventoryUpdateEvent(InventoryUpdateEvent event) {
-        log.info("Processing inventory update event for product ID: {}", event.getProductId());
-        updateDatabaseInventory(event.getProductId(), -event.getQuantity());
+        log.info("재고 업데이트 이벤트 수신: 상품 ID = {}, 수량 변경 = {}", event.getProductId(), event.getQuantity());
+        updateDBInventory(event.getProductId(), -event.getQuantity());
     }
 
     @Transactional
-    public void updateStock(Long productId, int newStock) {
-        log.info("Updating stock for product ID: {} to {}", productId, newStock);
-        updateDatabaseInventory(productId, newStock);
-        updateRedisInventory(productId, newStock);
+    public void updateDBStock(Long productId, int stockChange) {
+        log.info("DB 재고 변경 요청: 상품 ID = {}, 변경량 = {}", productId, stockChange);
+        updateDBInventory(productId, stockChange);
+    }
+
+    public int getRedisStock(Long productId) {
+        String stock = redisTemplate.opsForValue().get("inventory:" + productId);
+        return stock != null ? Integer.parseInt(stock) : -1;
+    }
+
+    private void updateDBInventory(Long productId, int stockChange) {
+        try {
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없음: " + productId));
+
+            int currentStock = product.getStock();
+            int newStock = currentStock + stockChange;
+
+            if (newStock < 0) {
+                throw new IllegalStateException("재고는 음수가 될 수 없습니다. 상품 ID: " + productId + ", 현재 재고: " + currentStock + ", 변경량: " + stockChange);
+            }
+
+            product.setStock(newStock);
+            productRepository.save(product);
+
+            log.info("DB 재고 업데이트 완료: 상품 ID = {}, 이전 재고 = {}, 변경량 = {}, 새 재고 = {}",
+                    productId, currentStock, stockChange, newStock);
+        } catch (Exception e) {
+            log.error("DB 재고 업데이트 중 오류 발생: 상품 ID = {}, 변경량 = {}", productId, stockChange, e);
+            throw new RuntimeException("DB 재고 업데이트 실패", e);
+        }
     }
 
     private void updateRedisInventory(Long productId, int stock) {
         try {
-            redisTemplate.opsForValue().set("inventory:" + productId, stock);
-        } catch (Exception e) {
-            log.error("Error updating Redis inventory for product ID: {}", productId, e);
-        }
-    }
+            String inventoryKey = "inventory:" + productId;
+            redisTemplate.opsForValue().set(inventoryKey, String.valueOf(stock));
+            redisTemplate.expire(inventoryKey, 1, TimeUnit.DAYS);
 
-    private void updateDatabaseInventory(Long productId, int stockChange) {
-        try {
-            Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
-            int newStock = product.getStock() + stockChange;
-            product.setStock(newStock);
-            productRepository.save(product);
+            log.info("Redis 재고 업데이트 완료: 상품 ID = {}, 재고 = {}", productId, stock);
         } catch (Exception e) {
-            log.error("Error updating database inventory for product ID: {}", productId, e);
+            log.error("Redis 재고 업데이트 중 오류 발생: 상품 ID = {}", productId, e);
         }
     }
 }

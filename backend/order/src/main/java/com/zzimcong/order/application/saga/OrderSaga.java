@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j(topic = "order-saga")
+@Slf4j(topic = "ORDER-SAGA")
 @RequiredArgsConstructor
 public class OrderSaga {
     private final InventoryService inventoryService;
@@ -67,7 +67,7 @@ public class OrderSaga {
 
     // 임시 주문 생성
     public Order createTempOrder(Long userId, OrderPreparationRequest request) {
-        log.info("Creating temporary order for user ID: {}", userId);
+        log.info("임시 주문 생성 시작. 사용자 ID: {}", userId);
 
         Order tempOrder = orderRequestMapper.orderPreperationRequestToOrder(request);
         tempOrder.setUserId(userId);
@@ -84,7 +84,7 @@ public class OrderSaga {
         try {
             String orderJson = objectMapper.writeValueAsString(tempOrder);
             Boolean setSuccess = redisTemplate.opsForValue()
-                    .setIfAbsent(key, orderJson, Duration.ofSeconds(10));
+                    .setIfAbsent(key, orderJson, Duration.ofMinutes(10));
 
             if (Boolean.FALSE.equals(setSuccess)) {
                 throw new ConcurrentModificationException("동시에 같은 키로 주문 생성 시도");

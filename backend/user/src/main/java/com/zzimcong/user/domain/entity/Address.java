@@ -2,12 +2,16 @@ package com.zzimcong.user.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "address")
 @Getter
 @Setter
 @Builder
+@SQLDelete(sql = "UPDATE address SET deleted = true WHERE id = ?")
+@SQLRestriction("deleted = false")
 @NoArgsConstructor
 @AllArgsConstructor
 public class Address extends BaseEntity {
