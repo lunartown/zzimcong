@@ -1,0 +1,85 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: local
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: auth-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/auth/**
+        - id: email-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/email-verifications/**
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - JwtAuthFilter
+        - id: address-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/address/**
+          filters:
+            - JwtAuthFilter
+        - id: product-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/v1/products/**,/api/v1/categories/**
+        - id: cart-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/v1/cart/**
+          filters:
+            - JwtAuthFilter
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - JwtAuthFilter
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${EUREKA_HOST}:8761/eureka/
+    registry-fetch-interval-seconds: 5  # 기본값은 30초
+    healthcheck:
+      enabled: true
+
+ribbon:
+  eureka:
+    enabled: true
+  ReadTimeout: 5000
+  ConnectTimeout: 3000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.netty: DEBUG
+    o.s.c.g.r.RouteDefinitionRouteLocator: WARN
+    redisratelimiter: DEBUG

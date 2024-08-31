@@ -1,16 +1,11 @@
-# Compiled class file
+# Compiled files
 *.class
+*.pyc
 
 # Log files
 *.log
 
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
+# Package files
 *.jar
 *.war
 *.nar
@@ -19,7 +14,7 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# Virtual machine crash logs
 hs_err_pid*
 
 # IDE-specific files
@@ -29,37 +24,37 @@ hs_err_pid*
 .vscode/
 *.swp
 *~
+.factorypath
+.project
+.classpath
+.settings/
 
-# Gradle
+# Build tools
+## Gradle
 .gradle
 **/build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Maven
+## Maven
 **/target/
 !.mvn/wrapper/maven-wrapper.jar
 
 # Spring Boot
 **/spring-boot-starter/
+.springBeans
 
 # Application properties
 application*.yml
 application*.properties
+!application.yml
 
 # OS-specific files
 .DS_Store
 Thumbs.db
 
-# Java annotation processor (APT)
-.factorypath
-
-# Compiled Python files
-*.pyc
-
 # Temporary files
 *.tmp
 *.bak
-*.swp
 *~.nib
 
 # External tool builders
@@ -68,41 +63,34 @@ Thumbs.db
 # Locally stored "Eclipse launch configurations"
 *.launch
 
-# CDT-specific (C/C++ Development Tooling)
-.cproject
-
-# PDT-specific (PHP Development Tools)
-.buildpath
-
-# TeXlipse plugin
-.texlipse
-
-# STS (Spring Tool Suite)
-.springBeans
-
 # Code coverage
 **/coverage/
 
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-**/frontend/zzimcong/node_modules/
-**/frontend/zzimcong/.pnp/
+# Frontend-specific
+## Dependencies
+**/node_modules/
+.pnp/
 .pnp.js
 
-# testing
-**/frontend/zzimcong/coverage/
+## Testing
+**/coverage/
 
-# production
-**/frontend/zzimcong/build/
+## Production
+**/build/
 
-# misc
-.DS_Store
+## Misc
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
+## Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# BlueJ files
+*.ctxt
