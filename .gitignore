@@ -4,6 +4,8 @@
 
 # Log files
 *.log
+*.log.*
+logs/
 
 # Package files
 *.jar
