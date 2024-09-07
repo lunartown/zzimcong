@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zzimcong.order.application.dto.*;
 import com.zzimcong.order.application.mapper.OrderRequestMapper;
+import com.zzimcong.order.application.queue.OrderSaveQueue;
 import com.zzimcong.order.application.service.InventoryService;
 import com.zzimcong.order.common.exception.ErrorCode;
 import com.zzimcong.order.common.exception.InternalServerErrorException;
@@ -11,13 +12,14 @@ import com.zzimcong.order.common.exception.NotFoundException;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderItem;
 import com.zzimcong.order.domain.entity.OrderStatus;
-import com.zzimcong.order.domain.repository.OrderRepository;
 import com.zzimcong.zzimconginventorycore.common.event.InventoryUpdateEvent;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -29,16 +31,15 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Service
-@Slf4j(topic = "ORDER-SAGA")
+@Slf4j(topic = "order-saga")
 @RequiredArgsConstructor
 public class OrderSaga {
     private final InventoryService inventoryService;
     private final OrderRequestMapper orderRequestMapper;
     private final ObjectMapper objectMapper;
-    private final OrderRepository orderRepository;
+    private final OrderSaveQueue orderSaveQueue;
     private final RedisTemplate<String, String> redisTemplate;
     private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
 
@@ -50,16 +51,12 @@ public class OrderSaga {
     // 주문 준비
     @Transactional
     public OrderPreparationResponse prepareOrder(Long userId, OrderPreparationRequest request) {
-        List<ProductQuantity> productQuantities = request.items().stream()
-                .map(item -> new ProductQuantity(item.productId(), item.quantity()))
-                .collect(Collectors.toList());
-
-        boolean allReserved = inventoryService.reserveInventory(productQuantities);
-
+        boolean allReserved = request.items().stream()
+                .allMatch(item -> inventoryService.reserveInventory(item.productId(), item.quantity()));
         if (allReserved) {
             Order tempOrder = createTempOrder(userId, request);
-            String tempId = saveTempOrderToRedis(userId, tempOrder);
-            return new OrderPreparationResponse(tempId, OrderPreparationStatus.SUCCESS);
+            String orderUuid = saveTempOrderToRedis(userId, tempOrder);
+            return new OrderPreparationResponse(orderUuid, OrderPreparationStatus.SUCCESS);
         } else {
             return new OrderPreparationResponse(null, OrderPreparationStatus.INVENTORY_SHORTAGE);
         }
@@ -67,7 +64,7 @@ public class OrderSaga {
 
     // 임시 주문 생성
     public Order createTempOrder(Long userId, OrderPreparationRequest request) {
-        log.info("임시 주문 생성 시작. 사용자 ID: {}", userId);
+        log.info("Creating temporary order for user ID: {}", userId);
 
         Order tempOrder = orderRequestMapper.orderPreperationRequestToOrder(request);
         tempOrder.setUserId(userId);
@@ -77,31 +74,28 @@ public class OrderSaga {
 
     // 임시 주문 정보 Redis에 저장
     private String saveTempOrderToRedis(Long userId, Order tempOrder) {
-        String tempId = generateUUID();
-        String key = "temp_order:" + userId + ":" + tempId;
-        String backupKey = "backup:" + key;
+        String orderUuid = generateOrderUuid();
+        String key = "temp_order:" + userId + ":" + orderUuid;
 
         try {
             String orderJson = objectMapper.writeValueAsString(tempOrder);
             Boolean setSuccess = redisTemplate.opsForValue()
-                    .setIfAbsent(key, orderJson, Duration.ofMinutes(10));
+                    .setIfAbsent(key, orderJson, Duration.ofMinutes(30));
 
             if (Boolean.FALSE.equals(setSuccess)) {
                 throw new ConcurrentModificationException("동시에 같은 키로 주문 생성 시도");
             }
 
-            redisTemplate.opsForValue().setIfAbsent(backupKey, orderJson, Duration.ofMinutes(11));
-
-            log.info("Temporary order created with ID: {}", tempId);
+            log.info("Temporary order created with ID: {}", orderUuid);
         } catch (JsonProcessingException e) {
             log.error("Error creating temporary order", e);
             throw new RuntimeException("임시 주문 생성 중 오류가 발생했습니다.");
         }
 
-        return tempId;
+        return orderUuid;
     }
 
-    private String generateUUID() {
+    private String generateOrderUuid() {
         return UUID.randomUUID().toString();
     }
 
@@ -116,36 +110,48 @@ public class OrderSaga {
         processPayment(userId, uuid, request.paymentDetailsRequest(), order);
     }
 
+    // 주문 정보 업데이트
     public Order updateOrderDetails(Long userId, String uuid, OrderCreationRequest orderCreationRequest) {
         String key = "temp_order:" + userId + ":" + uuid;
 
-        try {
-            // 1. Redis에서 주문 정보 조회
-            String orderJson = redisTemplate.opsForValue().get(key);
-            if (orderJson == null) {
-                throw new NotFoundException(ErrorCode.TEMP_ORDER_NOT_FOUND, "uuid : " + uuid);
+        return (Order) redisTemplate.execute(new SessionCallback<Object>() {
+            @Override
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                operations.watch(key);
+                String orderJson = (String) operations.opsForValue().get(key);
+
+                if (orderJson == null) {
+                    throw new NotFoundException(ErrorCode.TEMP_ORDER_NOT_FOUND, "uuid : " + uuid);
+                }
+
+                try {
+                    operations.multi();
+
+                    Order order = objectMapper.readValue(orderJson, Order.class);
+                    orderRequestMapper.updateOrderFromRequest(orderCreationRequest, order);
+
+                    order.setStatus(OrderStatus.PAYMENT_REQUESTED);
+
+                    String updatedOrderJson = objectMapper.writeValueAsString(order);
+                    operations.opsForValue().set(key, updatedOrderJson);
+                    operations.expire(key, Duration.ofMinutes(15));
+
+                    List<Object> txResults = operations.exec();
+
+                    if (txResults == null || txResults.isEmpty()) {
+                        throw new ConcurrentModificationException("주문 정보가 동시에 수정되었습니다. 다시 시도해주세요.");
+                    }
+
+                    log.info("Order details updated successfully for order: {}", uuid);
+                    return order;
+
+                } catch (JsonProcessingException e) {
+                    operations.discard();
+                    log.error("Error updating temporary order", e);
+                    throw new InternalServerErrorException(ErrorCode.ORDER_UPDATE_FAILED);
+                }
             }
-
-            // 2. 주문 정보 업데이트
-            Order order = objectMapper.readValue(orderJson, Order.class);
-            orderRequestMapper.updateOrderFromRequest(orderCreationRequest, order);
-            order.setStatus(OrderStatus.PAYMENT_REQUESTED);
-
-            // 3. 업데이트된 주문 정보를 Redis에 저장
-            String updatedOrderJson = objectMapper.writeValueAsString(order);
-            Boolean updateSuccess = redisTemplate.opsForValue().setIfPresent(key, updatedOrderJson, Duration.ofMinutes(10));
-
-            if (Boolean.FALSE.equals(updateSuccess)) {
-                throw new ConcurrentModificationException("주문 정보가 동시에 수정되었습니다. 다시 시도해주세요.");
-            }
-
-            log.info("Order details updated successfully for order: {}", uuid);
-            return order;
-
-        } catch (JsonProcessingException e) {
-            log.error("Error processing JSON for order: {}", uuid, e);
-            throw new InternalServerErrorException(ErrorCode.ORDER_UPDATE_FAILED);
-        }
+        });
     }
 
     // 결제 요청
@@ -190,7 +196,7 @@ public class OrderSaga {
                 compensatePaymentFailure(order);
             }
 
-            boolean deleted = Boolean.TRUE.equals(redisTemplate.delete(key));
+            boolean deleted = redisTemplate.delete(key);
             log.info("Redis에서 임시 주문 정보 삭제 {}: {}", (deleted ? "성공" : "실패"), key);
 
         } catch (JsonProcessingException e) {
@@ -205,31 +211,28 @@ public class OrderSaga {
     // 결제 성공 처리
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public void processSuccessfulPayment(Order order) {
-        order.setStatus(OrderStatus.ORDER_COMPLETED);
-        // 재고 확인 및 차감 (원자적 처리)
-        List<ProductQuantity> productQuantities = order.getOrderItems().stream()
-                .map(item -> new ProductQuantity(item.getProductId(), item.getQuantity()))
-                .collect(Collectors.toList());
         try {
-            boolean allConfirmed = inventoryService.confirmInventoryReduction(productQuantities);
-            if (!allConfirmed) {
-                throw new InternalServerErrorException(ErrorCode.INVENTORY_UPDATE_FAILED,
-                        "Failed to update inventory for one or more products");
-            }
-
-            // 주문 아이템 설정 및 Kafka 메시지 전송
+            order.setStatus(OrderStatus.ORDER_COMPLETED);
             for (OrderItem item : order.getOrderItems()) {
                 item.setOrder(order);
                 log.debug("주문 아이템 설정: {}", item);
+
+                // Redis의 예약된 재고를 실제 차감으로 변경
+                boolean stockUpdated = inventoryService.confirmInventoryReduction(item.getProductId(), item.getQuantity());
+                if (!stockUpdated) {
+                    throw new InternalServerErrorException(ErrorCode.INVENTORY_UPDATE_FAILED,
+                            "Failed to update inventory for product: " + item.getProductId());
+                }
 
                 // 실제 데이터베이스의 재고 차감 (Kafka를 통해 비동기적으로 처리)
                 kafkaTemplate.send("inventory-update", new InventoryUpdateEvent(item.getProductId(), item.getQuantity()));
             }
 
             log.info("주문 정보: {}", order);
-
-            orderRepository.save(order);
-            log.info("주문 저장 성공. 주문 ID: {}", order.getId());
+            // 주문 저장을 큐에 추가
+            String orderJson = objectMapper.writeValueAsString(order);
+            orderSaveQueue.addToSaveQueue(orderJson);
+            log.info("주문 저장 큐에 추가됨. 주문 ID: {}", order.getId());
         } catch (DataAccessException e) {
             log.error("주문 저장 중 데이터베이스 오류 발생", e);
             throw new InternalServerErrorException(ErrorCode.ORDER_SAVE_FAILED);
@@ -242,27 +245,17 @@ public class OrderSaga {
     // 보상 트랜잭션: 결제 실패 시 재고 회수
     private void compensatePaymentFailure(Order order) {
         log.info("결제 실패에 대한 보상 트랜잭션 시작. 주문 ID: {}", order.getId());
-        try {
-            List<ProductQuantity> productQuantities = order.getOrderItems().stream()
-                    .map(item -> new ProductQuantity(item.getProductId(), item.getQuantity()))
-                    .collect(Collectors.toList());
-            inventoryService.rollbackInventory(productQuantities);
-            log.info("주문에 대한 재고 롤백 성공. 주문 ID: {}", order.getId());
-        } catch (Exception e) {
-            log.error("주문에 대한 재고 롤백 실패. 주문 ID: {}, 오류: {}", order.getId(), e.getMessage(), e);
-            // 추가적인 오류 처리 로직
-            handleRollbackFailure(order);
+        for (OrderItem item : order.getOrderItems()) {
+            try {
+                inventoryService.rollbackInventory(item.getProductId(), item.getQuantity());
+                log.info("재고 해제 성공: 상품 ID: {}, 수량: {}", item.getProductId(), item.getQuantity());
+            } catch (Exception e) {
+                log.error("재고 해제 실패: 상품 ID: {}, 수량: {}, 오류: {}",
+                        item.getProductId(), item.getQuantity(), e.getMessage());
+                // 추가적인 오류 처리 로직
+                // 예: 관리자에게 알림, 수동 처리를 위한 큐에 추가 등
+            }
         }
         log.info("보상 트랜잭션 완료");
-    }
-
-    private void handleRollbackFailure(Order order) {
-        // 롤백 실패에 대한 추가 처리
-        log.warn("주문 ID: {}에 대한 수동 처리가 필요합니다.", order.getId());
-        // 예: 관리자에게 알림
-//        notificationService.notifyAdmin("재고 롤백 실패",
-//                String.format("주문 ID: %s에 대한 재고 롤백이 실패했습니다. 수동 처리가 필요합니다.", order.getId()));
-        // 수동 처리를 위한 큐에 추가
-//        manualProcessingQueue.addOrder(order);
     }
 }
