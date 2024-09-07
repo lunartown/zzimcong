@@ -12,6 +12,7 @@ import com.zzimcong.order.common.exception.NotFoundException;
 import com.zzimcong.order.domain.entity.Order;
 import com.zzimcong.order.domain.entity.OrderItem;
 import com.zzimcong.order.domain.entity.OrderStatus;
+import com.zzimcong.order.domain.repository.OrderRepository;
 import com.zzimcong.zzimconginventorycore.common.event.InventoryUpdateEvent;
 import com.zzimcong.zzimconginventorycore.common.model.KafkaMessage;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class OrderSaga {
     private final OrderRequestMapper orderRequestMapper;
     private final ObjectMapper objectMapper;
     private final OrderSaveQueue orderSaveQueue;
+    private final OrderRepository orderRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
 
@@ -230,8 +232,7 @@ public class OrderSaga {
 
             log.info("주문 정보: {}", order);
             // 주문 저장을 큐에 추가
-            String orderJson = objectMapper.writeValueAsString(order);
-            orderSaveQueue.addToSaveQueue(orderJson);
+            orderRepository.save(order);
             log.info("주문 저장 큐에 추가됨. 주문 ID: {}", order.getId());
         } catch (DataAccessException e) {
             log.error("주문 저장 중 데이터베이스 오류 발생", e);

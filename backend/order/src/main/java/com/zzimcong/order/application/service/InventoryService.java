@@ -1,37 +1,42 @@
 package com.zzimcong.order.application.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j(topic = "INVENTORY-SERVICE")
 public class InventoryService {
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RedisLock redisLock;
+    private final RedissonClient redissonClient;
 
-    private static final int MAX_RETRIES = 3;
-    private static final long INITIAL_BACKOFF = 100L; // 초기 백오프 시간 (밀리초)
+    private static final String INVENTORY_KEY_PREFIX = "inventory:";
+    private static final String RESERVED_KEY_PREFIX = "reserved:";
+    private static final String LOCK_KEY_PREFIX = "lock:inventory:";
 
-    public InventoryService(RedisTemplate<String, Object> redisTemplate, RedisLock redisLock) {
+    private static final long LOCK_WAIT_TIME = 10;
+    private static final long LOCK_LEASE_TIME = 5;
+
+    public InventoryService(RedisTemplate<String, Object> redisTemplate, RedissonClient redissonClient) {
         this.redisTemplate = redisTemplate;
-        this.redisLock = redisLock;
+        this.redissonClient = redissonClient;
     }
 
     public boolean reserveInventory(Long productId, int quantity) {
-        String inventoryKey = "inventory:" + productId;
-        String reservedKey = "reserved:" + productId;
+        String lockKey = LOCK_KEY_PREFIX + productId;
+        RLock lock = redissonClient.getLock(lockKey);
 
-        for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            try {
-                // 락 획득 시도 시간을 5초로 줄임
-                boolean result = redisLock.executeWithLock(inventoryKey, 5000, () -> {
+        try {
+            // 락 획득 시도 (최대 10초 대기, 5초 동안 락 유지)
+            if (lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS)) {
+                try {
+                    String inventoryKey = INVENTORY_KEY_PREFIX + productId;
+                    String reservedKey = RESERVED_KEY_PREFIX + productId;
+
                     Integer currentStock = (Integer) redisTemplate.opsForValue().get(inventoryKey);
                     Integer reservedStock = (Integer) redisTemplate.opsForValue().get(reservedKey);
 
@@ -41,104 +46,75 @@ public class InventoryService {
 
                     redisTemplate.opsForValue().increment(reservedKey, quantity);
                     return true;
-                });
-
-                if (result) {
-                    return true; // 성공적으로 재고 예약
+                } finally {
+                    lock.unlock();
                 }
-            } catch (Exception e) {
-                log.error("Failed to reserve inventory for product {} on attempt {}", productId, attempt + 1, e);
-            }
-
-            // 백오프 로직
-            try {
-                long backoffTime = INITIAL_BACKOFF * (long) Math.pow(2, attempt);
-                TimeUnit.MILLISECONDS.sleep(backoffTime);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
+            } else {
+                log.warn("Failed to acquire lock for product {}", productId);
                 return false;
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted while trying to acquire lock for product {}", productId, e);
+            return false;
         }
-
-        log.warn("Failed to reserve inventory for product {} after {} attempts", productId, MAX_RETRIES);
-        return false; // 모든 재시도 실패
     }
 
     public boolean confirmInventoryReduction(Long productId, int quantity) {
-        String inventoryKey = "inventory:" + productId;
-        String reservedKey = "reserved:" + productId;
+        String lockKey = LOCK_KEY_PREFIX + productId;
+        RLock lock = redissonClient.getLock(lockKey);
 
-        for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            try {
-                Boolean result = redisTemplate.execute(new SessionCallback<Boolean>() {
-                    @Override
-                    public Boolean execute(RedisOperations operations) throws DataAccessException {
-                        operations.watch(inventoryKey);
-                        operations.watch(reservedKey);
+        try {
+            if (lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS)) {
+                try {
+                    String inventoryKey = INVENTORY_KEY_PREFIX + productId;
+                    String reservedKey = RESERVED_KEY_PREFIX + productId;
 
-                        Integer currentStock = (Integer) operations.opsForValue().get(inventoryKey);
-                        Integer reservedStock = (Integer) operations.opsForValue().get(reservedKey);
+                    Integer currentStock = (Integer) redisTemplate.opsForValue().get(inventoryKey);
+                    Integer reservedStock = (Integer) redisTemplate.opsForValue().get(reservedKey);
 
-                        if (currentStock == null || reservedStock == null || reservedStock < quantity) {
-                            return false;
-                        }
-
-                        operations.multi();
-                        operations.opsForValue().decrement(inventoryKey, quantity);
-                        operations.opsForValue().decrement(reservedKey, quantity);
-                        List<Object> execResult = operations.exec();
-                        return !execResult.isEmpty();
+                    if (currentStock == null || reservedStock == null || reservedStock < quantity) {
+                        return false;
                     }
-                });
 
-                if (Boolean.TRUE.equals(result)) {
-                    return true; // 재고 감소 확정 성공
+                    redisTemplate.opsForValue().decrement(inventoryKey, quantity);
+                    redisTemplate.opsForValue().decrement(reservedKey, quantity);
+                    return true;
+                } finally {
+                    lock.unlock();
                 }
-            } catch (Exception e) {
-                log.error("Failed to confirm inventory reduction for product {} on attempt {}", productId, attempt + 1, e);
-            }
-
-            // 백오프 로직
-            try {
-                long backoffTime = INITIAL_BACKOFF * (long) Math.pow(2, attempt);
-                TimeUnit.MILLISECONDS.sleep(backoffTime);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
+            } else {
+                log.warn("Failed to acquire lock for product {} during inventory reduction confirmation", productId);
                 return false;
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted while trying to acquire lock for product {} during inventory reduction confirmation", productId, e);
+            return false;
         }
-
-        log.warn("Failed to confirm inventory reduction for product {} after {} attempts", productId, MAX_RETRIES);
-        return false; // 모든 재시도 실패
     }
 
     public void rollbackInventory(Long productId, int quantity) {
-        String reservedKey = "reserved:" + productId;
+        String lockKey = LOCK_KEY_PREFIX + productId;
+        RLock lock = redissonClient.getLock(lockKey);
 
-        for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            try {
-                redisLock.executeWithLock(reservedKey, 5000, () -> {
+        try {
+            if (lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS)) {
+                try {
+                    String reservedKey = RESERVED_KEY_PREFIX + productId;
                     Integer reservedStock = (Integer) redisTemplate.opsForValue().get(reservedKey);
                     if (reservedStock != null && reservedStock >= quantity) {
                         redisTemplate.opsForValue().decrement(reservedKey, quantity);
                     }
-                    return null;
-                });
-                return; // 성공적으로 롤백
-            } catch (Exception e) {
-                log.error("Failed to rollback inventory for product {} on attempt {}", productId, attempt + 1, e);
+                } finally {
+                    lock.unlock();
+                }
+            } else {
+                log.warn("Failed to acquire lock for product {} during inventory rollback", productId);
             }
-
-            // 백오프 로직
-            try {
-                long backoffTime = INITIAL_BACKOFF * (long) Math.pow(2, attempt);
-                TimeUnit.MILLISECONDS.sleep(backoffTime);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                return;
-            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted while trying to acquire lock for product {} during inventory rollback", productId, e);
         }
-
-        log.warn("Failed to rollback inventory for product {} after {} attempts", productId, MAX_RETRIES);
     }
 }

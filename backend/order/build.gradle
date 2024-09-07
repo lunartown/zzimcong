@@ -56,7 +56,7 @@ dependencies {
     //redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
-    implementation 'org.redisson:redisson:3.35.0'
+    implementation 'org.redisson:redisson-spring-boot-starter:3.17.1'
 
     //mysql
     implementation 'mysql:mysql-connector-java:8.0.32'
