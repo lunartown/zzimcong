@@ -1,0 +1,50 @@
+{
+  "Prepare Order" : {
+    "transaction" : "Prepare Order",
+    "sampleCount" : 2015,
+    "errorCount" : 19,
+    "errorPct" : 0.942928,
+    "meanResTime" : 9293.85260545906,
+    "medianResTime" : 6982.0,
+    "minResTime" : 103.0,
+    "maxResTime" : 26560.0,
+    "pct1ResTime" : 19730.4,
+    "pct2ResTime" : 21365.2,
+    "pct3ResTime" : 26285.52,
+    "throughput" : 57.38615327656423,
+    "receivedKBytesPerSec" : 26.603728497992197,
+    "sentKBytesPerSec" : 28.64457252299718
+  },
+  "총계" : {
+    "transaction" : "총계",
+    "sampleCount" : 4030,
+    "errorCount" : 38,
+    "errorPct" : 0.942928,
+    "meanResTime" : 5580.916129032245,
+    "medianResTime" : 3971.5,
+    "minResTime" : 40.0,
+    "maxResTime" : 26560.0,
+    "pct1ResTime" : 15481.800000000003,
+    "pct2ResTime" : 19747.35,
+    "pct3ResTime" : 22304.800000000003,
+    "throughput" : 113.82251595774727,
+    "receivedKBytesPerSec" : 45.48898513846523,
+    "sentKBytesPerSec" : 73.53444463862057
+  },
+  "Create Order" : {
+    "transaction" : "Create Order",
+    "sampleCount" : 2015,
+    "errorCount" : 19,
+    "errorPct" : 0.942928,
+    "meanResTime" : 1867.9796526054527,
+    "medianResTime" : 1395.0,
+    "minResTime" : 40.0,
+    "maxResTime" : 20114.0,
+    "pct1ResTime" : 3960.2000000000003,
+    "pct2ResTime" : 4467.999999999998,
+    "pct3ResTime" : 5213.439999999999,
+    "throughput" : 62.25668911821047,
+    "receivedKBytesPerSec" : 20.8999038825465,
+    "sentKBytesPerSec" : 49.36549687557931
+  }
+}
