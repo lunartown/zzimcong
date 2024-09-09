@@ -1,42 +1,26 @@
-<a name="top"></a>
-[![.NET](https://img.shields.io/badge/.NET-6.0%2C%207.0%2C%208.0-512BD4)](https://docs.abblix.com/docs/technical-requirements)
-[![language](https://img.shields.io/badge/language-C%23-239120)](https://learn.microsoft.com/ru-ru/dotnet/csharp/tour-of-csharp/overview)
-[![OS](https://img.shields.io/badge/OS-linux%2C%20windows%2C%20macOS-0078D4)](https://docs.abblix.com/docs/technical-requirements)
-[![CPU](https://img.shields.io/badge/CPU-x86%2C%20x64%2C%20ARM%2C%20ARM64-FF8C00)](https://docs.abblix.com/docs/technical-requirements)
-[![security rating](https://sonarcloud.io/api/project_badges/measure?project=Abblix_Oidc.Server&metric=security_rating)](https://sonarcloud.io/summary/overall?id=Abblix_Oidc.Server)
-[![reliability rating](https://sonarcloud.io/api/project_badges/measure?project=Abblix_Oidc.Server&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=Abblix_Oidc.Server)
-[![maintainability rating](https://sonarcloud.io/api/project_badges/measure?project=Abblix_Oidc.Server&metric=sqale_rating)](https://sonarcloud.io/summary/overall?id=Abblix_Oidc.Server)
-[![CodeQL analysis](https://github.com/Abblix/Oidc.Server/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/Abblix/Oidc.Server/security/code-scanning?query=is%3Aopen)
-[![GitHub release](https://img.shields.io/github/v/release/Abblix/Oidc.Server)](#)
-[![GitHub release date](https://img.shields.io/github/release-date/Abblix/Oidc.Server)](#)
-[![GitHub last commit](https://img.shields.io/github/last-commit/Abblix/Oidc.Server)](#)
-[![ChatGPT](https://img.shields.io/badge/ChatGPT-available-brightgreen.svg?logo=data:image/svg%2bxml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+T3BlbkFJPC90aXRsZT48cGF0aCBmaWxsPSIjRkZGRkZGIiBkPSJNMjIuMjgxOSA5LjgyMTFhNS45ODQ3IDUuOTg0NyAwIDAgMC0uNTE1Ny00LjkxMDggNi4wNDYyIDYuMDQ2MiAwIDAgMC02LjUwOTgtMi45QTYuMDY1MSA2LjA2NTEgMCAwIDAgNC45ODA3IDQuMTgxOGE1Ljk4NDcgNS45ODQ3IDAgMCAwLTMuOTk3NyAyLjkgNi4wNDYyIDYuMDQ2MiAwIDAgMCAuNzQyNyA3LjA5NjYgNS45OCA1Ljk4IDAgMCAwIC41MTEgNC45MTA3IDYuMDUxIDYuMDUxIDAgMCAwIDYuNTE0NiAyLjkwMDFBNS45ODQ3IDUuOTg0NyAwIDAgMCAxMy4yNTk5IDI0YTYuMDU1NyA2LjA1NTcgMCAwIDAgNS43NzE4LTQuMjA1OCA1Ljk4OTQgNS45ODk0IDAgMCAwIDMuOTk3Ny0yLjkwMDEgNi4wNTU3IDYuMDU1NyAwIDAgMC0uNzQ3NS03LjA3Mjl6bS05LjAyMiAxMi42MDgxYTQuNDc1NSA0LjQ3NTUgMCAwIDEtMi44NzY0LTEuMDQwOGwuMTQxOS0uMDgwNCA0Ljc3ODMtMi43NTgyYS43OTQ4Ljc5NDggMCAwIDAgLjM5MjctLjY4MTN2LTYuNzM2OWwyLjAyIDEuMTY4NmEuMDcxLjA3MSAwIDAgMSAuMDM4LjA1MnY1LjU4MjZhNC41MDQgNC41MDQgMCAwIDEtNC40OTQ1IDQuNDk0NHptLTkuNjYwNy00LjEyNTRhNC40NzA4IDQuNDcwOCAwIDAgMS0uNTM0Ni0zLjAxMzdsLjE0Mi4wODUyIDQuNzgzIDIuNzU4MmEuNzcxMi43NzEyIDAgMCAwIC43ODA2IDBsNS44NDI4LTMuMzY4NXYyLjMzMjRhLjA4MDQuMDgwNCAwIDAgMS0uMDMzMi4wNjE1TDkuNzQgMTkuOTUwMmE0LjQ5OTIgNC40OTkyIDAgMCAxLTYuMTQwOC0xLjY0NjR6TTIuMzQwOCA3Ljg5NTZhNC40ODUgNC40ODUgMCAwIDEgMi4zNjU1LTEuOTcyOFYxMS42YS43NjY0Ljc2NjQgMCAwIDAgLjM4NzkuNjc2NWw1LjgxNDQgMy4zNTQzLTIuMDIwMSAxLjE2ODVhLjA3NTcuMDc1NyAwIDAgMS0uMDcxIDBsLTQuODMwMy0yLjc4NjVBNC41MDQgNC41MDQgMCAwIDEgMi4zNDA4IDcuODcyem0xNi41OTYzIDMuODU1OEwxMy4xMDM4IDguMzY0IDE1LjExOTIgNy4yYS4wNzU3LjA3NTcgMCAwIDEgLjA3MSAwbDQuODMwMyAyLjc5MTNhNC40OTQ0IDQuNDk0NCAwIDAgMS0uNjc2NSA4LjEwNDJ2LTUuNjc3MmEuNzkuNzkgMCAwIDAtLjQwNy0uNjY3em0yLjAxMDctMy4wMjMxbC0uMTQyLS4wODUyLTQuNzczNS0yLjc4MThhLjc3NTkuNzc1OSAwIDAgMC0uNzg1NCAwTDkuNDA5IDkuMjI5N1Y2Ljg5NzRhLjA2NjIuMDY2MiAwIDAgMSAuMDI4NC0uMDYxNWw0LjgzMDMtMi43ODY2YTQuNDk5MiA0LjQ5OTIgMCAwIDEgNi42ODAyIDQuNjZ6TTguMzA2NSAxMi44NjNsLTIuMDItMS4xNjM4YS4wODA0LjA4MDQgMCAwIDEtLjAzOC0uMDU2N1Y2LjA3NDJhNC40OTkyIDQuNDk5MiAwIDAgMSA3LjM3NTctMy40NTM3bC0uMTQyLjA4MDVMOC43MDQgNS40NTlhLjc5NDguNzk0OCAwIDAgMC0uMzkyNy42ODEzem0xLjA5NzYtMi4zNjU0bDIuNjAyLTEuNDk5OCAyLjYwNjkgMS40OTk4djIuOTk5NGwtMi41OTc0IDEuNDk5Ny0yLjYwNjctMS40OTk3WiIvPjwvc3ZnPg==)](https://chatgpt.com/g/g-1icXaNyOR-abblix-oidc-server-helper)
-[![getting started](https://img.shields.io/badge/getting_started-guide-1D76DB)](https://docs.abblix.com/docs/getting-started-guide)
-[![Free](https://img.shields.io/badge/free_for_non_commercial_use-brightgreen)](#-license)
+[![프로젝트 문서](https://img.shields.io/badge/프로젝트_문서-000000?style=for-the-badge&logo=notion&logoColor=white)](여기에_노션_링크_삽입)
+[![소스 코드](https://img.shields.io/badge/소스_코드-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/username/repository)
+[![프로젝트 Q&A](https://img.shields.io/badge/프로젝트_Q&A-74aa9c?style=for-the-badge&logo=openai&logoColor=white)](여기에_ChatGPT_링크_삽입)
 
-⭐ Star us on GitHub — it motivates us a lot!
+## 🚀 프로젝트 소개
 
-[![Share](https://img.shields.io/badge/share-000000?logo=x&logoColor=white)](https://x.com/intent/tweet?text=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Oidc.Server%20%23OpenIDConnect%20%23Security%20%23Authentication)
-[![Share](https://img.shields.io/badge/share-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/Abblix/Oidc.Server)
-[![Share](https://img.shields.io/badge/share-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/sharing/share-offsite/?url=https://github.com/Abblix/Oidc.Server)
-[![Share](https://img.shields.io/badge/share-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/submit?title=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Oidc.Server)
-[![Share](https://img.shields.io/badge/share-0088CC?logo=telegram&logoColor=white)](https://t.me/share/url?url=https://github.com/Abblix/Oidc.Server&text=Check%20out%20this%20project%20on%20GitHub)
+선착순 구매가 가능한 식품 이커머스 플랫폼
+
+- 이 프로젝트는 대규모 트래픽 처리, 동시성 제어, 그리고 마이크로서비스 아키텍처 설계 등 실제 기업에서 마주할 수 있는 기술적 도전들을 경험하고 해결하기 위해 개발되었습니다.
 
 ## 목차
 
 - [프로젝트 소개](#-프로젝트-소개)
-- [Certification](#-certification)
+- [기술 스택](#-기술-스택)
 - [실행 방법](#-실행-방법)
-- [Documentation](#-documentation)
-- [Feedback and Contributions](#-feedback-and-contributions)
-- [License](#-license)
-- [Contacts](#%EF%B8%8F-contacts)
+- [문서 및 아키텍쳐](#-문서-및-아키텍쳐)
+- [주요 기능](#-주요-기능)
+- [기술적 의사 결정](#-기술적-의사-결정)
+- [트러블 슈팅](#-트러블-슈팅)
 
-## 🚀 프로젝트 소개
+## 🛠 기술 스택
 
-**찜콩**은 선착순 구매 기능을 핵심으로 하는 이커머스 플랫폼입니다. 이 프로젝트는 대규모 트래픽 처리, 동시성 제어, 그리고 마이크로서비스 아키텍처 설계 등 실제 기업에서 마주할 수 있는 기술적 도전들을 경험하고 해결하기 위해 개발되었습니다.
-
-## 주요 기술 스택
+### 🖥 Backend
 
 - **Backend**: Java 22, Spring Boot 3.3.2, Spring Cloud
 - **Database**: MySQL, Redis
@@ -44,7 +28,147 @@
 - **Infrastructure**: Docker, Docker Compose
 - **기타**: JMeter(부하 테스트), Prometheus(모니터링)
 
-프로젝트의 기술 스택은 성능, 확장성, 그리고 현업 적용성을 고려하여 선택했습니다. Java 22와 Spring Boot 3.3.2는 최신 버전으로, 새로운 기능과 향상된 성능을 제공하며 실무에서 널리 사용됩니다. Spring Cloud는 마이크로서비스 아키텍처 구현을 위해 채택했으며, MySQL은 안정성과 광범위한 지원 때문에 주 데이터베이스로 선택했습니다. Redis는 고성능 캐싱과 분산 락 구현을 위해, Kafka는 마이크로서비스 간 이벤트 기반 통신을 위해 도입했습니다. Docker와 Docker Compose는 일관된 개발 및 배포 환경을 제공하기 위해 사용했으며, JMeter와 Prometheus는 각각 성능 테스트와 모니터링을 위해 선택했습니다. 이러한 기술 스택은 대규모 트래픽 처리와 확장 가능한 시스템 구축이라는 프로젝트의 목표를 달성하는 데 적합하며, 동시에 현업에서 많이 사용되는 기술들이라 실무 적용성도 높다고 판단했습니다.
+<details>
+<summary>주요 기술 스택 선정 이유</summary>
+<details>
+
+<summary style="margin-left:20px">Java 22 & Spring Boot 3.3.2</summary>
+
+1. 레코드 패턴 활용
+
+   - Java 22의 레코드 패턴을 DTO(Data Transfer Object) 구현에 적극 활용
+   - 불변성 보장 및 보일러플레이트 코드 감소로 가독성 높은 코드 작성
+   - `equals()`, `hashCode()`, `toString()` 메서드 자동 생성으로 개발 생산성 향상
+
+2. 향상된 보안
+
+   - Spring Cloud Gateway 활용: 최신 버전의 Spring Boot와 잘 통합
+   - 중앙 집중식 보안 관리: API 요청에 대한 인증 및 권한 부여를 Gateway 레벨에서 처리
+   - 요청 필터링: 악성 요청 필터링 및 rate limiting 적용으로 시스템 보호
+   - 최신 보안 패치: Java 22와 Spring Boot 3.3.2의 최신 보안 업데이트로 취약점 대응
+
+3. 미래 지향적 개발
+   - 최신 기술 스택 사용으로 향후 기술 변화에 유연하게 대응 가능
+   - 프로젝트의 장기적인 유지보수성과 확장성을 고려한 선택
+
+</details>
+
+<details>
+<summary style="margin-left:20px">Spring Cloud Eureka</summary>
+
+1. 서비스 디스커버리 기본 구조 구현
+
+   - User, Order, Product 서비스의 위치를 Eureka 서버에서 중앙 관리
+
+2. 설정 간소화
+
+   - URL 대신 서비스 이름을 사용하여 코드를 더 간결하게 구성
+
+3. 서비스 확장 고려
+   - 추후 트래픽 증가에 따른 동적 스케일링 시, Eureka의 로드밸런싱과 서비스 디스커버리 기능 활용 가능
+
+</details>
+<details>
+<summary style="margin-left:20px">MySQL</summary>
+
+1. 안정성과 커뮤니티 지원
+
+   - 오랜 기간 검증된 안정성과 높은 성능 제공
+   - 활발한 커뮤니티 지원으로 문제 해결 및 정보 공유가 용이
+
+2. 가벼움과 설정 편의성
+
+   - 기본 설정만으로 ACID, 트랜잭션, 인덱싱 즉시 사용 가능
+   - 256MB 메모리로 기본 구동 가능한 낮은 리소스 요구
+   - 이커머스에 유리한 쿼리 캐시 기능으로 읽기 작업 성능 향상
+
+3. 프로젝트 특성에 따른 적합성
+
+   - 구조화된 데이터(주문, 사용자, 상품)와 복잡한 관계 처리에 적합
+   - ACID 속성 보장으로 NoSQL 대비 데이터 일관성 유지에 우수
+   - 현 단계에서 MongoDB의 유연한 스키마, 대용량 처리 능력 굳이 필요하지 않음
+   - 트랜잭션 처리, 조인 연산 등 RDBMS의 강점이 프로젝트에 부합
+
+</details>
+<details>
+<summary style="margin-left:20px">Redis
+</summary>
+
+1. 재고 관리 최적화
+
+   - 인메모리 특성으로 빠른 재고 조회/갱신 가능
+   - 주문 과정의 동시성 문제 해결에 적합
+
+2. 분산 락 기능
+
+   - Redisson 라이브러리 통해 간편한 분산 락 구현
+   - 추후 개발 예정인 다중 서버 환경에서 동시성 제어 용이
+
+3. Spring과의 높은 호환성
+
+   - Spring Data Redis로 쉬운 연동
+   - 트랜잭션 관리, 캐싱 등 다양한 기능 활용
+
+4. 다른 인메모리 저장소와의 비교
+   - Memcached: 단순 key-value 저장만 가능, 분산 락 기능 부재
+   - Hazelcast: 학습 곡선이 높고, Redis에 비해 커뮤니티 지원 부족
+   </details>
+
+<details>
+<summary style="margin-left:20px">Kafka
+</summary>
+
+1. 로그 기반 메시지 저장
+
+   - 메시지를 디스크에 순차적으로 저장, 데이터 영속성 보장
+   - 주문 히스토리 추적 및 시스템 장애 시 복구에 유리
+
+2. 높은 처리량과 낮은 지연시간
+
+   - 초당 수백만 건의 메시지 처리 가능
+   - 주문 폭주 시에도 안정적인 성능 유지
+
+3. 컨슈머 그룹 개념
+
+   - 주문, 결제, 배송 등 다양한 서비스가 독립적으로 메시지 소비
+   - 시스템 확장 시 컨슈머만 추가하여 처리량 향상 가능
+
+4. 데이터 리플레이 기능
+
+   - 과거 주문 데이터 재처리 가능
+   - 시스템 장애 복구나 데이터 분석에 활용
+   </details>
+
+<details>
+<summary style="margin-left:20px">Docker & Docker Compose
+</summary>
+
+1.  일관된 개발 환경 제공
+
+    - 모든 개발자가 동일한 환경에서 작업 가능
+    - "내 컴퓨터에서는 작동합니다" 문제 해결
+
+2.  다양한 환경 통합 및 설정
+
+    - Redis, Kafka, Zookeeper 등 외부 서비스 쉽게 통합
+    - 복잡한 의존성 관리 단순화
+    - 환경 설정을 docker-compose.yml 파일로 관리
+    - 버전 관리 시스템을 통한 인프라 변경 추적 용이
+
+3.  리소스 효율성
+
+    - 가상머신 대비 가볍고 빠른 실행
+    - 개발 환경에서의 리소스 사용 최적화
+
+4.  MSA 구조에서 장점(차후 계획)
+
+    - User, Order, Product 서비스를 독립적인 컨테이너로 관리
+    - 서비스 간 격리로 의존성 문제 최소화
+    - 컨테이너 기반으로 서비스 빠른 배포 가능
+    - 트래픽 증가 시 컨테이너 수평 확장 용이
+
+</details>
+</details>
 
 ## 📝 실행 방법
 
@@ -57,41 +181,14 @@ $ git clone https://github.com/your-username/zzimcong.git
 $ cd zzimcong
 ```
 
-2. Docker를 이용한 서비스 실행
+2. 쉘 스크립트 실행
 
 ```shell
-docker-compose up -d --build
-```
-
-이 명령어로 MySQL, Redis, Kafka 등의 서비스가 백그라운드로 실행됩니다.
-
-3. 마이크로 서비스 빌드
-
-```shell
-# E
-cd user-service
-./gradlew bootRun
-
-# User Service
-cd user-service
-./gradlew bootRun
-
-# User Service
-cd user-service
-./gradlew bootRun
-
-# 새 터미널에서
-cd product-service
-./gradlew bootRun
-
-# 새 터미널에서
-cd order-service
-./gradlew bootRun
+chmod +x /run-script.sh
+/run-script.sh
 ```
 
 ## 📚 API 문서
-
-### [zzimcong API (Postman)](https://documenter.getpostman.com/view/28230650/2sAXjRVUrm)
 
 ---
 
@@ -104,28 +201,17 @@ cd order-service
 
 ---
 
-## 🛠 기술 스택
+## 🚧 문서 및 아키텍쳐
 
-### 🖥 Backend
+### [API 문서](https://wooden-dust-ea9.notion.site/API-de29ea6a3535422d84290f5b1ef9423a)
 
-- Spring Boot
-- Spring Security
-- JPA / Hibernate
-- MySQL
-- Redis
-- Docker / Docker Compose
+### 시퀀스 다이어그램
 
----
-
-## 🚧 프로젝트 아키텍처
-
-프로젝트의 전체적인 아키텍처는 마이크로서비스 아키텍처를 따르며, 각 기능별로 분리된 서비스들이 REST API를 통해 서로 통신합니다. Docker를 사용하여 각 서비스들을 컨테이너화하였으며, MySQL과 Redis를 사용하여 데이터의 지속성을 관리합니다.
+![diagram](https://file.notion.so/f/f/072d6599-b568-4618-8dae-62b022713c6a/de4a5868-7000-42ce-9b6d-087320425525/NCvH2i8m3CRnzvqYx2IYFWuKjml4D61XRKUI2hkzSrGbFkRFxuCSr52ifhb3iY9mgcebiNJBbYF51RD1Vv700YFBCnBtW0fxyUWg9LGonrhxWxWcpXwsvk2DGrG_dQO1XgZ6cMNVRU5pUpckcM2a1uSwD_jEtz85DBoZyk_ny_5LQTNij0q4uRkVOcw50v7wt-PGLOXptm6972f5q0FgcH-tId5KeC8jGGvAX4j02f93ACeX.png?table=block&id=383e91e1-4dd6-46bd-b33f-c509e26221c6&spaceId=072d6599-b568-4618-8dae-62b022713c6a&expirationTimestamp=1725940800000&signature=EwK6A-Hwjnn84qpoktk5Wo19CpIEzEh1ZC3NVmSzTBk&downloadName=NCvH2i8m3CRnzvqYx2IYFWuKjml4D61XRKUI2hkzSrGbFkRFxuCSr52ifhb3iY9mgcebiNJBbYF51RD1Vv700YFBCnBtW0fxyUWg9LGonrhxWxWcpXwsvk2DGrG_dQO1XgZ6cMNVRU5pUpckcM2a1uSwD_jEtz85DBoZyk_ny_5LQTNij0q4uRkVOcw50v7wt-PGLOXptm6972f5q0FgcH-tId5KeC8jGGvAX4j02f93ACeX.png)
 
 ---
 
 ## 📈 성능 최적화 및 트러블슈팅
-
-프로젝트 개발 과정에서 발생한 주요 성능 최적화 작업과 트러블슈팅 사례를 공유합니다. 이는 프로젝트 진행 중 직면한 기술적 문제를 해결하고, 프로젝트의 전반적인 성능을 향상시킨 경험을 공유하는 자료입니다.
 
 ### 성능 최적화 사례
 
@@ -141,9 +227,61 @@ cd order-service
 
 전체 프로젝트 관련 글 및 기술적 고민은 [블로그](https://jaehyuuk.tistory.com/category/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%28Java%29/%EC%98%88%EC%95%BD%EB%A7%88%EC%BC%93)에서 확인할 수 있습니다.
 
----
+## 📂 폴더 구조
 
-## 🔗 유용한 링크
-
-- **프로젝트 GitHub 저장소**: [yeyak-market GitHub](https://github.com/jaehyuuk/yeyak-market)
-- **프로젝트 문서 및 기술적 의사결정 자료**: [의사결정 문서 (yeyak-market)](https://drive.google.com/file/d/11zDsGOgyGlBBeZabj4n0ZMt-inn5qnrR/view?usp=sharing)
+```
+zzimcong
+├── 📂 backend
+│   ├── 📂 api-gateway
+│   ├── 📂 eureka-server
+│   ├── 📂 order
+│   │   └── 📂 src.main.java.com.zzimcong
+│   │       └── 📂 order
+│   │           ├── 📂 api
+│   │           │   ├── 📂 client
+│   │           │   ├── 📂 controller
+│   │           │   └── 📂 response
+│   │           ├── 📂 application
+│   │           │   ├── 📂 dto
+│   │           │   ├── 📂 mapper
+│   │           │   ├── 📂 queue
+│   │           │   ├── 📂 saga
+│   │           │   └── 📂 service
+│   │           ├── 📂 aspect
+│   │           ├── 📂 common
+│   │           │   ├── 📂 exception
+│   │           │   └── 📂 util
+│   │           ├── 📂 domain
+│   │           │   ├── 📂 entity
+│   │           │   └── 📂 repository
+│   │           └── 📂 infrastructure
+│   │               ├── 📂 config
+│   │               ├── 📂 kafka
+│   │               ├── 📂 redis
+│   │               └── 📂 statemachine
+│   ├── 📂 product
+│   ├── 📂 user
+│   └── 📂 zzimcong-inventory-core
+├── 📂 docker
+│   ├── 📂 jenkins
+│   ├── 📂 mysql
+│   │   └── 📂 init
+│   └── 📂 prometheus
+├── 📂 frontend
+│   └── 📂 zzimcong
+│       ├── 📂 public
+│       └── 📂 src
+│           ├── 📂 components
+│           ├── 📂 context
+│           ├── 📂 pages
+│           └── 📂 services
+├── 📂 load-test
+│   ├── 📂 20240829_Concurrency_LuaScript_v1
+│   │   ├── 📂 results
+│   │   ├── 📂 reports
+│   │   └── 📂 tests
+│   ├── 📂 20240829_Concurrency_LuaScript_v2
+│   ├── 📂 20240829_Concurrency_Redlock_v1
+│   └── 📂 20240830_Concurrency_RedisReservation_v1
+└── 📂 scripts
+```
