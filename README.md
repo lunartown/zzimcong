@@ -232,8 +232,6 @@ chmod +x /run-script.sh
 
 - **확장성**: 클라우드 네이티브 인프라로 확장하여, AWS EKS나 GCP GKE를 통해 자원을 유연하게 관리. 이로 인해 시스템의 자동 복구, 로드 밸런싱 및 확장성을 강화할 수 있으며, 클라우드의 기본 기능을 활용해 효율적인 리소스 관리와 신속한 장애 대응이 가능.
 
----
-
 ## 🚧 문서 및 아키텍쳐
 
 ### [API 문서](https://wooden-dust-ea9.notion.site/API-de29ea6a3535422d84290f5b1ef9423a)
@@ -242,23 +240,63 @@ chmod +x /run-script.sh
 
 ![diagram](https://file.notion.so/f/f/072d6599-b568-4618-8dae-62b022713c6a/de4a5868-7000-42ce-9b6d-087320425525/NCvH2i8m3CRnzvqYx2IYFWuKjml4D61XRKUI2hkzSrGbFkRFxuCSr52ifhb3iY9mgcebiNJBbYF51RD1Vv700YFBCnBtW0fxyUWg9LGonrhxWxWcpXwsvk2DGrG_dQO1XgZ6cMNVRU5pUpckcM2a1uSwD_jEtz85DBoZyk_ny_5LQTNij0q4uRkVOcw50v7wt-PGLOXptm6972f5q0FgcH-tId5KeC8jGGvAX4j02f93ACeX.png?table=block&id=383e91e1-4dd6-46bd-b33f-c509e26221c6&spaceId=072d6599-b568-4618-8dae-62b022713c6a&expirationTimestamp=1725940800000&signature=EwK6A-Hwjnn84qpoktk5Wo19CpIEzEh1ZC3NVmSzTBk&downloadName=NCvH2i8m3CRnzvqYx2IYFWuKjml4D61XRKUI2hkzSrGbFkRFxuCSr52ifhb3iY9mgcebiNJBbYF51RD1Vv700YFBCnBtW0fxyUWg9LGonrhxWxWcpXwsvk2DGrG_dQO1XgZ6cMNVRU5pUpckcM2a1uSwD_jEtz85DBoZyk_ny_5LQTNij0q4uRkVOcw50v7wt-PGLOXptm6972f5q0FgcH-tId5KeC8jGGvAX4j02f93ACeX.png)
 
----
+## 📈 트러블슈팅
 
-## 📈 성능 최적화 및 트러블슈팅
+### Entity 자기 참조 문제
 
-### 성능 최적화 사례
+1. 초기 설계:
+   - 카테고리 계층 구조를 위해 @ManyToOne으로 부모 카테고리 참조
+2. 발생한 문제:
+   - 전체 카테고리 조회 시 과도한 쿼리 생성
+   - 자식 카테고리 중복 조회
+   - N+1 문제 및 무한 재귀 쿼리 발생
+3. 시도한 해결책:
+   - Lazy loading 적용: 불필요한 즉시 로딩 방지 목적
+   - Fetch join 사용: N+1 문제 해결 시도
+   - Jackson 라이브러리 설정: JSON 직렬화 시 무한 루프 방지
+4. 해결책 실패 원인:
+   - Lazy loading: 전체 조회 시 여전히 N+1 문제 발생
+   - Fetch join: 다중 계층 구조에서 카테고리 중복 문제 해결 못함
+   - Jackson 설정: 순환 참조는 해결했으나 쿼리 문제는 여전히 존재
+5. 최종 해결 방안:
+   - 카테고리 엔티티에 'path'와 'depth' 컬럼 추가
+   - 결과: 쿼리 수 감소 및 중복 조회 문제 해결
+6. 주요 학습점:
+   - 자기 참조 관계의 복잡성 이해
+   - ORM 사용 시 쿼리 최적화의 중요성
+   - 데이터 모델링이 성능에 미치는 영향
+   - 때로는 JPA 기능보다 DB 모델링으로 문제 해결 가능
 
-- **MSA(MicroService Architecture) 도입**: 서비스의 확장성과 유지보수성을 향상시키기 위해 마이크로서비스 아키텍처를 도입했습니다. [자세히 보기](https://jaehyuuk.tistory.com/161)
-- **API Gateway 추가**: 시스템의 안정성과 서비스 관리의 용이성을 위해 API Gateway를 추가했습니다. [자세히 보기](https://jaehyuuk.tistory.com/165)
-- **실시간 재고 관리 서비스 추가**: 대규모 트래픽 처리를 위한 실시간 재고 관리 서비스를 추가했습니다. [자세히 보기](https://jaehyuuk.tistory.com/180)
+### 응답시간 개선
 
-### 트러블슈팅
+1. 초기 문제 상황: 재고 예약 및 차감, 롤백 시 과도한 DB I/O로 응답시간 3,754ms 발생
 
-- **Redis와 JWT 토큰 만료 시간 동기화 문제**: Redis에 저장된 JWT 토큰과 실제 만료 시간 사이의 동기화 문제를 해결했습니다. [자세히 보기](https://jaehyuuk.tistory.com/160)
-- **Rest API 응답 데이터의 Null 값 문제 해결**: 선택적 필드를 포함하는 API 응답에서 Null 값 처리 문제를 해결했습니다. [자세히 보기](https://jaehyuuk.tistory.com/163)
-- **예약 구매 상품의 시간 제한 처리**: 예약 구매 상품에 대한 시간 제한 처리 로직을 개선했습니다. [자세히 보기](https://jaehyuuk.tistory.com/172)
+2. Redis 캐싱 도입:
 
-전체 프로젝트 관련 글 및 기술적 고민은 [블로그](https://jaehyuuk.tistory.com/category/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%28Java%29/%EC%98%88%EC%95%BD%EB%A7%88%EC%BC%93)에서 확인할 수 있습니다.
+   - 결과: 분산락 추가로 3,606ms (미미한 개선)
+
+3. 레디스 락 구현 변경 및 배치 처리 도입:
+
+   - CompletableFuture 활용한 병렬 처리 시도
+     결과: 5,634ms (성능 악화)
+
+4. 병목 지점 정밀 분석:
+
+   - IntelliJ Profiler 활용: 재고 예약 및 분산락에서 주요 지연 발생 확인
+   - 해결책: Lua Script를 이용한 원자적 연산으로 세밀한 락킹 구현
+
+5. 최종 결과: 응답시간 5,634ms → 191ms (97% 개선)
+6. 주요 학습점:
+   - 캐싱만으로는 충분한 성능 개선 어려움
+   - 병렬 처리가 항상 성능 향상으로 이어지지 않음
+   - 정확한 병목 지점 파악의 중요성
+   - 세밀한 락 관리와 원자적 연산의 효과
+
+## ✔️ 기술적 의사 결정
+
+### MSA간 통신
+
+### 동시성 제어
 
 ## 📂 폴더 구조
 
