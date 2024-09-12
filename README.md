@@ -76,7 +76,7 @@ chmod +x /run-script.sh
 
 - **주문 상태 관리**: 주문 생성, 결제 대기, 결제 성공, 결제 실패 등 **주문 상태**를 여러 단계로 나누어 관리. 주문이 생성된 후에도 실시간으로 상태가 변경되어 사용자와 관리자 모두 정확한 정보를 확인할 수 있음
 
-- **SAGA 패턴을 사용한 트랜잭션 관리**: 결제 성공 시 주문 정보와 재고가 동시에 갱신되도록 **트랜잭션 처리**를 적용하여, 주문 생성 및 결제 과정에서 데이터의 일관성을 보장. 또한 주문 과정 중 결제 오류 또는 재고 부족 등 예기치 못한 상황이 발생할 경우, 모든 작업이 자동으로 **롤백**되며, 사용자는 즉시 문제 상황을 안내받고 적절한 대응을 할 수 있음
+- **SAGA 패턴을 사용한 트랜잭션 관리**: 결제 성공 시 주문 정보와 재고가 동시에 갱신되도록 **트랜잭션 처리**를 적용하여, 주문 생성 및 결제 과정에서 데이터의 일관성을 보장. 또한 주문 과정 중 결제 오류 또는 재고 부족 등 예기치 못한 상황이 발생할 경우, 보상 트랜잭션이 일어나 모든 작업이 자동으로 **롤백**되며, 사용자는 즉시 문제 상황을 안내받고 적절한 대응을 할 수 있음
 
 - **성능 최적화**: Redis와 같은 **인메모리 데이터베이스**를 사용해 재고 확인 및 주문 처리 속도를 최적화하고, 대규모 트래픽 상황에서도 안정적인 주문 처리가 가능하게 설계
 
@@ -90,19 +90,23 @@ chmod +x /run-script.sh
 
 - **오케스트레이션**: **마이크로서비스 아키텍처(MSA)** 와 SAGA 패턴을 도입하여 각 서비스를 독립적으로 관리하고 확장할 수 있는 구조로 설계. 향후 Kubernetes와 같은 오케스트레이션 도구를 도입해 각 서비스의 자동 배포, 스케일링, 롤백을 관리. 이를 통해 트래픽 급증 시 자동 스케일링을 적용해 성능을 유지하고, 장애 발생 시에도 무중단 운영 가능토록 구현 예정
 
-- **확장성**: 클라우드 네이티브 인프라로 확장하여, AWS EKS나 GCP GKE를 통해 자원을 유연하게 관리. 이로 인해 시스템의 자동 복구, 로드 밸런싱 및 확장성을 강화할 수 있으며, 클라우드의 기본 기능을 활용해 효율적인 리소스 관리와 신속한 장애 대응이 가능
+- **클라우드 네이티브 인프라**: 클라우드 네이티브 인프라로 확장하여, AWS EKS나 GCP GKE를 통해 자원을 유연하게 관리. 이로 인해 시스템의 자동 복구, 로드 밸런싱 및 확장성을 강화할 수 있으며, 클라우드의 기본 기능을 활용해 효율적인 리소스 관리와 신속한 장애 대응이 가능
 
 ## 🚧 문서 및 아키텍쳐
 
 ### [API 문서](https://wooden-dust-ea9.notion.site/API-de29ea6a3535422d84290f5b1ef9423a)
 
+### 시스템 아키텍처
+
+![아키텍처](https://github.com/user-attachments/assets/762a1a5a-a2e8-46ce-b21a-611b70031813)
+
 ### ERD 다이어그램
 
-![ERD](<https://file.notion.so/f/f/072d6599-b568-4618-8dae-62b022713c6a/e69bd240-2c38-4446-8039-70a2d93336d5/exported_from_idea.drawio_(1).png?table=block&id=c436fd86-613c-4114-adf8-4902b7b8de52&spaceId=072d6599-b568-4618-8dae-62b022713c6a&expirationTimestamp=1726128000000&signature=NL9jE0EajGrH7ps9pdZ8ZF9oNmqeMHdiUSGq0WBJpW8&downloadName=exported_from_idea.drawio+%281%29.png>)
+![ERD](https://github.com/user-attachments/assets/09d14b98-e2e1-4ad9-b717-67fb6bac2575)
 
 ### 시퀀스 다이어그램
 
-![diagram](https://file.notion.so/f/f/072d6599-b568-4618-8dae-62b022713c6a/de4a5868-7000-42ce-9b6d-087320425525/NCvH2i8m3CRnzvqYx2IYFWuKjml4D61XRKUI2hkzSrGbFkRFxuCSr52ifhb3iY9mgcebiNJBbYF51RD1Vv700YFBCnBtW0fxyUWg9LGonrhxWxWcpXwsvk2DGrG_dQO1XgZ6cMNVRU5pUpckcM2a1uSwD_jEtz85DBoZyk_ny_5LQTNij0q4uRkVOcw50v7wt-PGLOXptm6972f5q0FgcH-tId5KeC8jGGvAX4j02f93ACeX.png?table=block&id=383e91e1-4dd6-46bd-b33f-c509e26221c6&spaceId=072d6599-b568-4618-8dae-62b022713c6a&expirationTimestamp=1726128000000&signature=tymiSG-6KGvYY1y6mq09CHYayGtRrRAO0ZkIrlsw458&downloadName=NCvH2i8m3CRnzvqYx2IYFWuKjml4D61XRKUI2hkzSrGbFkRFxuCSr52ifhb3iY9mgcebiNJBbYF51RD1Vv700YFBCnBtW0fxyUWg9LGonrhxWxWcpXwsvk2DGrG_dQO1XgZ6cMNVRU5pUpckcM2a1uSwD_jEtz85DBoZyk_ny_5LQTNij0q4uRkVOcw50v7wt-PGLOXptm6972f5q0FgcH-tId5KeC8jGGvAX4j02f93ACeX.png)
+![diagram](https://github.com/user-attachments/assets/d5db5023-e9b5-4c64-84e6-be906f0db152)
 
 기타 문서는 [문서(명세, 다이어그램)](https://wooden-dust-ea9.notion.site/e5dc953d30814e8689e5bed8dcd7be31) 참고
 
@@ -177,7 +181,7 @@ chmod +x /run-script.sh
 
 노션 페이지 [개발환경 명세](https://wooden-dust-ea9.notion.site/0ea2f4c67a7c4f60871b8b51d170d55d), [마이크로 서비스 간 통신 방법](https://wooden-dust-ea9.notion.site/2938710b03ff4f848ae5e386a573700f) 참고
 
-## 📈 트러블슈팅
+## 📈 트러블 슈팅
 
 ### [Entity 자기 참조 문제](https://wooden-dust-ea9.notion.site/Entity-b14a3f11ebf741e782fa82ac064b7a9b)
 
