@@ -102,7 +102,7 @@ chmod +x /run-script.sh
 
 ### ERD 다이어그램
 
-![ERD](https://github.com/user-attachments/assets/1470306f-76da-4dfb-a80e-b6b5d587c493)
+![ERD](https://github.com/user-attachments/assets/f26234d7-35ba-4a70-ba99-622f084108ce)
 
 ### 시퀀스 다이어그램
 
