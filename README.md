@@ -102,7 +102,7 @@ chmod +x /run-script.sh
 
 ### ERD 다이어그램
 
-![ERD](https://github.com/user-attachments/assets/09d14b98-e2e1-4ad9-b717-67fb6bac2575)
+![ERD](https://github.com/user-attachments/assets/1470306f-76da-4dfb-a80e-b6b5d587c493)
 
 ### 시퀀스 다이어그램
 
@@ -110,7 +110,7 @@ chmod +x /run-script.sh
 
 기타 문서는 [문서(명세, 다이어그램)](https://wooden-dust-ea9.notion.site/e5dc953d30814e8689e5bed8dcd7be31) 참고
 
-## ✔️ 기술적 의사 결정
+## ✓ 기술적 의사 결정
 
 ### 1. Java 22 & Spring Boot 3.3.2 선택
 
